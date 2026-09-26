@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Product, ProductCategory, Order, BlogPost, VideoItem, SiteSettings, CartItem } from '../types';
+import { Product, ProductCategory, Order, BlogPost, VideoItem, SiteSettings, CartItem, HeroSlide } from '../types';
 import { 
   INITIAL_CATEGORIES, 
   INITIAL_PRODUCTS, 
