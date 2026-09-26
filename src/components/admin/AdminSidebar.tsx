@@ -23,7 +23,8 @@ export type AdminTab =
   | 'orders' 
   | 'blog' 
   | 'videos' 
-  | 'media' 
+  | 'media'
+  | 'hero'
   | 'settings';
 
 interface AdminSidebarProps {
@@ -48,6 +49,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { id: 'blog', label: 'Blog CMS', icon: FileText },
     { id: 'videos', label: 'Video CMS', icon: Video },
     { id: 'media', label: 'Media Assets', icon: Image },
+    { id: 'hero', label: 'Homepage Hero Slider', icon: Image },
     { id: 'settings', label: 'Store & Database', icon: Settings },
   ];
 
