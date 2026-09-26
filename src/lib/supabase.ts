@@ -524,6 +524,92 @@ export const db = {
     setLocalItem(STORAGE_KEYS.VIDEOS, current.filter(v => v.id !== id));
     return true;
   },
+  
+    // HERO SLIDES
+  async getHeroSlides(): Promise<HeroSlide[]> {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('hero_slides')
+          .select('*')
+          .order('display_order', { ascending: true });
+
+        if (!error && data) {
+          return data.map((s: any) => ({
+            id: s.id,
+            image: s.image,
+            title: s.title,
+            subtitle: s.subtitle,
+            tagline: s.tagline,
+            ctaPrimary: s.cta_primary,
+            ctaSecondary: s.cta_secondary,
+            link: s.link,
+            displayOrder: s.display_order,
+            isPublished: Boolean(s.is_published),
+            createdAt: s.created_at,
+            updatedAt: s.updated_at
+          }));
+        }
+      } catch (err) {
+        console.warn('Supabase hero slides fetch error:', err);
+      }
+    }
+
+    return getLocalItem<HeroSlide[]>(STORAGE_KEYS.HERO_SLIDES, []);
+  },
+
+  async saveHeroSlide(slide: HeroSlide): Promise<HeroSlide> {
+    if (supabase) {
+      try {
+        await supabase.from('hero_slides').upsert({
+          id: slide.id,
+          image: slide.image,
+          title: slide.title,
+          subtitle: slide.subtitle,
+          tagline: slide.tagline,
+          cta_primary: slide.ctaPrimary,
+          cta_secondary: slide.ctaSecondary,
+          link: slide.link,
+          display_order: slide.displayOrder,
+          is_published: slide.isPublished,
+          updated_at: new Date().toISOString()
+        });
+      } catch (err) {
+        console.warn('Supabase hero slide save error:', err);
+      }
+    }
+
+    const current = getLocalItem<HeroSlide[]>(STORAGE_KEYS.HERO_SLIDES, []);
+    const index = current.findIndex(s => s.id === slide.id);
+    const updated = [...current];
+
+    if (index >= 0) {
+      updated[index] = slide;
+    } else {
+      updated.push(slide);
+    }
+
+    setLocalItem(STORAGE_KEYS.HERO_SLIDES, updated);
+    return slide;
+  },
+
+  async deleteHeroSlide(id: string): Promise<boolean> {
+    if (supabase) {
+      try {
+        await supabase.from('hero_slides').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Supabase hero slide delete error:', err);
+      }
+    }
+
+    const current = getLocalItem<HeroSlide[]>(STORAGE_KEYS.HERO_SLIDES, []);
+    setLocalItem(
+      STORAGE_KEYS.HERO_SLIDES,
+      current.filter(s => s.id !== id)
+    );
+
+    return true;
+  },
 
   // SETTINGS
   async getSettings(): Promise<SiteSettings> {
