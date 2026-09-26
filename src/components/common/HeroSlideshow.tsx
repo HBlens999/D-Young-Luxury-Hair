@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Pause, Play, MessageCircle, ArrowRight, Sparkles } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play,
+  MessageCircle,
+  ArrowRight,
+  Sparkles
+} from 'lucide-react';
 import { HERO_SLIDES } from '../../lib/initialData';
+import { db } from '../../lib/supabase';
+import { HeroSlide } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 
 interface HeroSlideshowProps {
@@ -13,40 +23,84 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { settings } = useSettings();
+
+  // Load hero slides from Supabase, with original slides as fallback
+  useEffect(() => {
+    const loadSlides = async () => {
+      const savedSlides = await db.getHeroSlides();
+
+      if (savedSlides.length > 0) {
+        setSlides(savedSlides.filter(slide => slide.isPublished));
+      } else {
+        setSlides(
+          HERO_SLIDES.map((slide, index) => ({
+            ...slide,
+            displayOrder: index,
+            isPublished: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }))
+        );
+      }
+    };
+
+    loadSlides();
+  }, []);
 
   // Check prefers-reduced-motion
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     setPrefersReducedMotion(mediaQuery.matches);
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+
+    const handler = (e: MediaQueryListEvent) =>
+      setPrefersReducedMotion(e.matches);
+
     mediaQuery.addEventListener('change', handler);
+
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
 
   const nextSlide = useCallback(() => {
-    setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
-  }, []);
+    if (slides.length === 0) return;
+
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  }, [slides.length]);
 
   const prevSlide = useCallback(() => {
-    setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length);
-  }, []);
+    if (slides.length === 0) return;
 
-  // Auto transition timer (every 6 seconds for a cinematic feel)
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  }, [slides.length]);
+
+  // Auto transition timer
   useEffect(() => {
-    if (isPlaying && !prefersReducedMotion) {
+    if (isPlaying && !prefersReducedMotion && slides.length > 1) {
       timerRef.current = setInterval(() => {
         nextSlide();
       }, 6000);
     }
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, nextSlide, prefersReducedMotion]);
+  }, [isPlaying, nextSlide, prefersReducedMotion, slides.length]);
+
+  // Keep current slide valid if slides change
+  useEffect(() => {
+    if (slides.length === 0) {
+      setCurrentSlide(0);
+    } else if (currentSlide >= slides.length) {
+      setCurrentSlide(0);
+    }
+  }, [slides.length, currentSlide]);
 
   // Touch Swipe handlers
   const minSwipeDistance = 50;
+
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
@@ -58,9 +112,11 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
 
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
+
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
+
     if (isLeftSwipe) {
       nextSlide();
     } else if (isRightSwipe) {
@@ -69,8 +125,15 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
   };
 
   const cleanWhatsAppNumber = settings.whatsAppNumber.replace(/[^0-9]/g, '');
-  const activeSlide = HERO_SLIDES[currentSlide];
-  const whatsAppUrl = `https://wa.me/${cleanWhatsAppNumber}?text=${encodeURIComponent(`Hello D Young Luxury Hairs, I would like to order from the ${activeSlide.title} collection.`)}`;
+  const activeSlide = slides[currentSlide];
+
+  if (!activeSlide) {
+    return null;
+  }
+
+  const whatsAppUrl = `https://wa.me/${cleanWhatsAppNumber}?text=${encodeURIComponent(
+    `Hello D Young Luxury Hairs, I would like to order from the ${activeSlide.title} collection.`
+  )}`;
 
   return (
     <section
@@ -81,20 +144,25 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
       onTouchEnd={onTouchEnd}
     >
       {/* Slides Container */}
-      {HERO_SLIDES.map((slide, index) => {
+      {slides.map((slide, index) => {
         const isActive = index === currentSlide;
+
         return (
           <div
             key={slide.id}
             aria-hidden={!isActive}
             className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+              isActive
+                ? 'opacity-100 z-10'
+                : 'opacity-0 z-0 pointer-events-none'
             }`}
           >
             {/* Background Image or Luxury Atelier Backdrop */}
             <div
               className={`w-full h-full transform will-change-transform ${
-                isActive && !prefersReducedMotion ? 'animate-kenburns scale-105' : 'scale-100'
+                isActive && !prefersReducedMotion
+                  ? 'animate-kenburns scale-105'
+                  : 'scale-100'
               } transition-transform duration-1000`}
             >
               {slide.image ? (
@@ -113,14 +181,14 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
               )}
             </div>
 
-            {/* Measured luxury scrim overlay according to frontend design principles */}
+            {/* Luxury scrim overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#1A1310]/95 via-[#1A1310]/40 to-transparent" />
             <div className="absolute inset-0 bg-radial from-transparent via-transparent to-[#1A1310]/40" />
           </div>
         );
       })}
 
-      {/* Official Exact Brand Logo Watermark in Hero (Top-Right, only if uploaded) */}
+      {/* Official Exact Brand Logo Watermark in Hero */}
       {settings.logoUrl && (
         <div className="absolute top-6 right-6 sm:top-10 sm:right-10 z-20 pointer-events-none select-none flex items-center gap-3">
           <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden border border-[#D8B46E]/50 p-0.5 shadow-2xl bg-[#160E0A]/85 backdrop-blur-md opacity-80 sm:opacity-90">
@@ -137,7 +205,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
       {/* Hero Content Overlay */}
       <div className="relative z-20 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-16 sm:pb-20">
         <div className="max-w-2xl text-[#FDFCF7] space-y-4">
-          
+
           {/* Subtle Tagline with Official Brand Emblem */}
           <div className="inline-flex items-center gap-2.5 text-xs uppercase tracking-[0.22em] text-[#D6C2A7] font-medium bg-[#1A1310]/70 backdrop-blur-sm px-3.5 py-1.5 border border-[#B89865]/40 w-fit">
             {settings.logoUrl ? (
@@ -150,11 +218,12 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
             ) : (
               <Sparkles className="w-3.5 h-3.5 text-[#D8B46E]" />
             )}
+
             <span className="w-4 h-[1px] bg-[#B89865]" />
             <span>{activeSlide.tagline}</span>
           </div>
 
-          {/* Main Display Headline (Cormorant Garamond) */}
+          {/* Main Display Headline */}
           <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-[#FDFCF7] leading-[1.08] text-balance">
             {activeSlide.title}
           </h1>
@@ -183,12 +252,12 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
               <span>ORDER VIA WHATSAPP</span>
             </a>
           </div>
-
         </div>
       </div>
 
       {/* Manual Slideshow Controls */}
       <div className="absolute bottom-6 right-6 sm:bottom-10 sm:right-10 z-30 flex items-center gap-3 bg-[#1A1310]/60 backdrop-blur-md px-3 py-2 border border-[#3E2D24]">
+
         {/* Play/Pause */}
         <button
           onClick={() => setIsPlaying(!isPlaying)}
@@ -196,19 +265,25 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
           title={isPlaying ? 'Pause slideshow' : 'Play slideshow'}
           aria-label={isPlaying ? 'Pause slideshow' : 'Play slideshow'}
         >
-          {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+          {isPlaying ? (
+            <Pause className="w-3.5 h-3.5" />
+          ) : (
+            <Play className="w-3.5 h-3.5" />
+          )}
         </button>
 
         <span className="w-[1px] h-3 bg-[#3E2D24]" />
 
         {/* Indicators */}
         <div className="flex items-center gap-1.5 px-1">
-          {HERO_SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <button
               key={i}
               onClick={() => setCurrentSlide(i)}
               className={`h-1.5 transition-all duration-300 rounded-none focus:outline-none ${
-                i === currentSlide ? 'w-6 bg-[#B89865]' : 'w-2 bg-[#EBE3D8]/30 hover:bg-[#EBE3D8]/60'
+                i === currentSlide
+                  ? 'w-6 bg-[#B89865]'
+                  : 'w-2 bg-[#EBE3D8]/30 hover:bg-[#EBE3D8]/60'
               }`}
               aria-label={`Go to slide ${i + 1}`}
             />
@@ -225,6 +300,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
+
         <button
           onClick={nextSlide}
           className="text-[#D6C2A7] hover:text-[#FDFCF7] p-1 transition-colors focus:outline-none"
@@ -233,7 +309,6 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
-
     </section>
   );
 };
