@@ -23,71 +23,110 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [slides, setSlides] = useState<HeroSlide[]>([]);
+
+  // Show the original hero slides immediately.
+  // Supabase will replace them in the background when its data arrives.
+  const [slides, setSlides] = useState<HeroSlide[]>(
+    HERO_SLIDES.map((slide, index) => ({
+      ...slide,
+      displayOrder: index,
+      isPublished: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }))
+  );
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { settings } = useSettings();
 
-  // Load hero slides from Supabase, with original slides as fallback
+  // Load editable hero slides from Supabase in the background
   useEffect(() => {
-    const loadSlides = async () => {
-      const savedSlides = await db.getHeroSlides();
+    let isMounted = true;
 
-      if (savedSlides.length > 0) {
-        setSlides(savedSlides.filter(slide => slide.isPublished));
-      } else {
-        setSlides(
-          HERO_SLIDES.map((slide, index) => ({
-            ...slide,
-            displayOrder: index,
-            isPublished: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }))
+    const loadSlides = async () => {
+      try {
+        const savedSlides = await db.getHeroSlides();
+
+        if (!isMounted) return;
+
+        const publishedSlides = savedSlides.filter(
+          slide => slide.isPublished
+        );
+
+        // Only replace the instant fallback when Supabase
+        // actually has published slides.
+        if (publishedSlides.length > 0) {
+          setSlides(publishedSlides);
+          setCurrentSlide(0);
+        }
+      } catch (error) {
+        // Keep the instant fallback slides if Supabase fails.
+        console.warn(
+          'Could not load hero slides from Supabase. Using default slides.',
+          error
         );
       }
     };
 
     loadSlides();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Check prefers-reduced-motion
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
     setPrefersReducedMotion(mediaQuery.matches);
 
-    const handler = (e: MediaQueryListEvent) =>
+    const handler = (e: MediaQueryListEvent) => {
       setPrefersReducedMotion(e.matches);
+    };
 
     mediaQuery.addEventListener('change', handler);
 
-    return () => mediaQuery.removeEventListener('change', handler);
+    return () => {
+      mediaQuery.removeEventListener('change', handler);
+    };
   }, []);
 
   const nextSlide = useCallback(() => {
     if (slides.length === 0) return;
 
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
+    setCurrentSlide(prev => (prev + 1) % slides.length);
   }, [slides.length]);
 
   const prevSlide = useCallback(() => {
     if (slides.length === 0) return;
 
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+    setCurrentSlide(prev => (prev - 1 + slides.length) % slides.length);
   }, [slides.length]);
 
   // Auto transition timer
   useEffect(() => {
-    if (isPlaying && !prefersReducedMotion && slides.length > 1) {
+    if (
+      isPlaying &&
+      !prefersReducedMotion &&
+      slides.length > 1
+    ) {
       timerRef.current = setInterval(() => {
         nextSlide();
       }, 6000);
     }
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
     };
-  }, [isPlaying, nextSlide, prefersReducedMotion, slides.length]);
+  }, [
+    isPlaying,
+    nextSlide,
+    prefersReducedMotion,
+    slides.length
+  ]);
 
   // Keep current slide valid if slides change
   useEffect(() => {
@@ -114,6 +153,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
     if (!touchStart || !touchEnd) return;
 
     const distance = touchStart - touchEnd;
+
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
 
@@ -124,16 +164,20 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
     }
   };
 
-  const cleanWhatsAppNumber = settings.whatsAppNumber.replace(/[^0-9]/g, '');
+  const cleanWhatsAppNumber =
+    settings.whatsAppNumber.replace(/[^0-9]/g, '');
+
   const activeSlide = slides[currentSlide];
 
   if (!activeSlide) {
     return null;
   }
 
-  const whatsAppUrl = `https://wa.me/${cleanWhatsAppNumber}?text=${encodeURIComponent(
-    `Hello D Young Luxury Hairs, I would like to order from the ${activeSlide.title} collection.`
-  )}`;
+  const whatsAppUrl =
+    `https://wa.me/${cleanWhatsAppNumber}?text=` +
+    encodeURIComponent(
+      `Hello D Young Luxury Hairs, I would like to order from the ${activeSlide.title} collection.`
+    );
 
   return (
     <section
@@ -176,6 +220,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
               ) : (
                 <div className="w-full h-full bg-gradient-to-tr from-[#160E0A] via-[#221610] to-[#120B07] flex items-center justify-center relative overflow-hidden">
                   <div className="absolute inset-0 bg-radial from-transparent via-[#160E0A]/40 to-[#160E0A]" />
+
                   <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#D8B46E_1px,transparent_1px)] [background-size:24px_24px]" />
                 </div>
               )}
@@ -183,6 +228,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
 
             {/* Luxury scrim overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#1A1310]/95 via-[#1A1310]/40 to-transparent" />
+
             <div className="absolute inset-0 bg-radial from-transparent via-transparent to-[#1A1310]/40" />
           </div>
         );
@@ -220,6 +266,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
             )}
 
             <span className="w-4 h-[1px] bg-[#B89865]" />
+
             <span>{activeSlide.tagline}</span>
           </div>
 
@@ -234,11 +281,13 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
 
           {/* Primary and Secondary Action CTAs */}
           <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+
             <button
               onClick={() => onNavigate('/shop')}
               className="px-8 py-3.5 bg-[#FDFCF7] text-[#1A1310] hover:bg-[#EBE3D8] text-xs uppercase tracking-[0.18em] font-semibold transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-lg"
             >
               <span>SHOP NOW</span>
+
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
 
@@ -249,6 +298,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
               className="px-6 py-3.5 bg-[#25D366]/90 hover:bg-[#25D366] text-[#FFFFFF] text-xs uppercase tracking-[0.18em] font-semibold transition-all duration-200 flex items-center justify-center gap-2.5 backdrop-blur-sm cursor-pointer shadow-md"
             >
               <MessageCircle className="w-4 h-4 fill-white" />
+
               <span>ORDER VIA WHATSAPP</span>
             </a>
           </div>
@@ -292,7 +342,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
 
         <span className="w-[1px] h-3 bg-[#3E2D24]" />
 
-        {/* Prev / Next Buttons */}
+        {/* Previous */}
         <button
           onClick={prevSlide}
           className="text-[#D6C2A7] hover:text-[#FDFCF7] p-1 transition-colors focus:outline-none"
@@ -301,6 +351,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
           <ChevronLeft className="w-4 h-4" />
         </button>
 
+        {/* Next */}
         <button
           onClick={nextSlide}
           className="text-[#D6C2A7] hover:text-[#FDFCF7] p-1 transition-colors focus:outline-none"
