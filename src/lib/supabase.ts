@@ -34,6 +34,7 @@ const STORAGE_KEYS = {
   ORDERS: 'dy_luxury_orders_v2',
   BLOG_POSTS: 'dy_luxury_blog_posts_v2',
   VIDEOS: 'dy_luxury_videos_v2',
+  HERO_SLIDES: 'dy_luxury_hero_slides_v1',
   SETTINGS: 'dy_luxury_settings_v2'
 };
 
