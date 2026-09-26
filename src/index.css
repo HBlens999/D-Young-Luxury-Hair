@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --color-luxury-milk: #FBF9F5;
+  --color-luxury-cream: #F4EFEA;
+  --color-luxury-ivory: #FDFCF7;
+  --color-luxury-nude: #EBE3D8;
+  --color-luxury-champagne: #D6C2A7;
+  --color-luxury-gold: #B89865;
+  --color-luxury-bronze: #8C6A48;
+  --color-luxury-brown: #4A3326;
+  --color-luxury-espresso: #291C16;
+  --color-luxury-dark: #1A1310;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-luxury-milk);
+    color: var(--color-luxury-espresso);
+    overflow-x: hidden;
+  }
+  
+  h1, h2, h3, .font-editorial {
+    font-family: var(--font-serif);
+  }
+}
+
+@keyframes kenburns-slow {
+  0% {
+    transform: scale(1.0);
+  }
+  50% {
+    transform: scale(1.08) translate(-1%, -1%);
+  }
+  100% {
+    transform: scale(1.0);
+  }
+}
+
+.animate-kenburns {
+  animation: kenburns-slow 16s ease-in-out infinite alternate;
+}
+

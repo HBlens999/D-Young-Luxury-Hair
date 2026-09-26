@@ -1,0 +1,246 @@
+[
+  {
+    "id": "upload_1",
+    "image_reference": "image.png (burgundy dual mannequins)",
+    "raw_input": "SDD luxury bone straight 28\" 200g and 24\" with 2by6 closure bungurdy colour",
+    "parsed_details": {
+      "name_or_style": "SDD luxury bone straight",
+      "lengths_and_grams": [
+        "28\" 200g",
+        "24\""
+      ],
+      "closure": "2by6 closure",
+      "color": "burgundy (bungurdy)",
+      "price": "Pending / Not provided yet"
+    },
+    "received_at": "2026-09-25T07:59:35-07:00"
+  },
+  {
+    "id": "upload_2",
+    "image_reference": "image.png (orange dual mannequins)",
+    "raw_input": "SDD luxury Vietnamese bone straight 20\" with 2by6  18\" with 5by5 closure  orange colour, 190k - 210k",
+    "parsed_details": {
+      "name_or_style": "SDD luxury Vietnamese bone straight",
+      "lengths_and_closures": [
+        "20\" with 2by6",
+        "18\" with 5by5 closure"
+      ],
+      "color": "orange colour",
+      "price_range": "190k - 210k (₦190,000 - ₦210,000)"
+    },
+    "received_at": "2026-09-25T08:02:56-07:00"
+  },
+  {
+    "id": "upload_3",
+    "image_reference": "image.png (black pixel curls unit)",
+    "raw_input": "SDD pixel curls with 5by5 closure 14\" per bundle 100g 50,000 closure 35,000 200g With wigin 140,000",
+    "parsed_details": {
+      "name_or_style": "SDD pixel curls with 5by5 closure",
+      "length": "14\"",
+      "pricing_breakdown": {
+        "per_bundle_100g": "₦50,000",
+        "closure": "₦35,000",
+        "complete_unit_200g_with_wigging": "₦140,000"
+      }
+    },
+    "received_at": "2026-09-25T08:04:17-07:00"
+  },
+  {
+    "id": "upload_4",
+    "image_reference": "image.png (10 inch bob copper/ombre mannequins)",
+    "raw_input": "SDD Vietnamese bone straight 10 with 5by5 closure 125,000 wigin 3k 128k",
+    "parsed_details": {
+      "name_or_style": "SDD Vietnamese bone straight bob",
+      "length": "10\"",
+      "closure": "5by5 closure",
+      "pricing_breakdown": {
+        "hair_closure_price": "₦125,000",
+        "wigging": "₦3,000",
+        "total_unit_price": "₦128,000"
+      }
+    },
+    "received_at": "2026-09-25T08:08:22-07:00"
+  },
+  {
+    "id": "upload_5",
+    "image_reference": "image.png (copper bundles with 2x6 closure on chair)",
+    "raw_input": "SDD luxury Vietnamese bone straight 10 with 2by6 closure 100k",
+    "parsed_details": {
+      "name_or_style": "SDD luxury Vietnamese bone straight bundles with closure",
+      "length": "10\"",
+      "closure": "2by6 closure",
+      "price": "₦100,000 (100k)"
+    },
+    "received_at": "2026-09-25T08:09:52-07:00"
+  },
+  {
+    "id": "upload_6",
+    "image_reference": "image.png (rows of golden/caramel straight bundles)",
+    "raw_input": "SDD luxury Vietnamese bone straight 10 with 2by6 closure 100k",
+    "parsed_details": {
+      "name_or_style": "SDD luxury Vietnamese bone straight (additional view / wholesale bundles)",
+      "length": "10\"",
+      "closure": "2by6 closure",
+      "price": "₦100,000 (100k)",
+      "notes": "Pairs with or provides factory/wholesale bundle display for 10\" bone straight"
+    },
+    "received_at": "2026-09-25T08:10:52-07:00"
+  },
+  {
+    "id": "upload_7",
+    "image_reference": "image.png (6 golden honey bundles + dark root 2x6 closure)",
+    "raw_input": "SDD luxury Vietnamese bone straight 10 with 2by6 closure 100k",
+    "parsed_details": {
+      "name_or_style": "SDD luxury Vietnamese bone straight bundles with 2by6 closure",
+      "length": "10\"",
+      "closure": "2by6 closure",
+      "price": "₦100,000 (100k)",
+      "notes": "Close-up detail shot of 10\" bundles and dark-root 2by6 closure"
+    },
+    "received_at": "2026-09-25T08:11:43-07:00"
+  },
+  {
+    "id": "upload_8",
+    "image_reference": "image.png (rich copper-auburn straight bundles layered with dark root 2x6 closure)",
+    "raw_input": "SDD luxury Vietnamese bone straight 10 with 2by6 closure 100k",
+    "parsed_details": {
+      "name_or_style": "SDD luxury Vietnamese bone straight bundles with 2by6 closure (copper auburn shade)",
+      "length": "10\"",
+      "closure": "2by6 closure",
+      "price": "₦100,000 (100k)",
+      "notes": "Full bundle set with dark-root closure displayed on chair"
+    },
+    "received_at": "2026-09-25T08:12:31-07:00"
+  },
+  {
+    "id": "upload_9",
+    "image_reference": "image.png (raw deep wave ombre brown 30\" bundles and 5x5 closure)",
+    "raw_input": "Raw deep wave ombre brawn 100g 30\" 150,000 closure 75,000 \n Wig with 300g with 5by5 closure 525,000",
+    "parsed_details": {
+      "name_or_style": "Raw Deep Wave Ombre Brown",
+      "length": "30\"",
+      "color": "Ombre Brown (\"brawn\")",
+      "bundle_price_100g": "₦150,000 per 100g bundle",
+      "closure_price": "₦75,000",
+      "closure_type": "5by5 closure",
+      "wig_complete_price": "₦525,000 (300g unit with 5by5 closure)",
+      "notes": "30\" luxury long length, raw deep wave texture in ombre brown tone. Pricing breakdown for bundles, closure, and custom 300g wig unit."
+    },
+    "received_at": "2026-09-25T08:13:30-07:00"
+  },
+  {
+    "id": "upload_10",
+    "image_reference": "image.png (SDD deep wave 24\" 300g with 5by5 closure)",
+    "raw_input": "SDD deep wave with 5by5 closure 24\" 300g 245,000",
+    "parsed_details": {
+      "name_or_style": "SDD Deep Wave with 5by5 Closure",
+      "length": "24\"",
+      "weight": "300g",
+      "closure": "5by5 closure",
+      "price": "₦245,000 (245k)",
+      "notes": "Super Double Drawn (SDD) deep wave texture, 24 inches, 300g full density with 5by5 lace closure."
+    },
+    "received_at": "2026-09-25T08:15:40-07:00"
+  },
+  {
+    "id": "upload_11",
+    "image_reference": "image.png (Super luxury Vietnamese bone straight 20\" 200g with 2by6 closure)",
+    "raw_input": "Super luxury Vietnamese bone straight 20\" with 2by6 closure 200g 200,000",
+    "parsed_details": {
+      "name_or_style": "Super luxury Vietnamese bone straight with 2by6 closure",
+      "length": "20\"",
+      "weight": "200g",
+      "closure": "2by6 closure",
+      "price": "₦200,000 (200k)",
+      "notes": "Super luxury Vietnamese bone straight hair, 20 inches, 200g density with 2by6 lace closure."
+    },
+    "received_at": "2026-09-25T08:17:19-07:00"
+  },
+  {
+    "id": "upload_12",
+    "image_reference": "image.png (Vietnamese donor bone straight 14\" piano blonde with 2by6 closure)",
+    "raw_input": "Vietnamese donor bone straight 14\" with 2by6 closure piano blonde 140,000",
+    "parsed_details": {
+      "name_or_style": "Vietnamese donor bone straight with 2by6 closure",
+      "hair_grade_or_type": "Vietnamese Single Donor Bone Straight",
+      "length": "14\"",
+      "closure": "2by6 closure",
+      "color": "Piano Blonde",
+      "price": "₦140,000 (140k)",
+      "notes": "Authentic Vietnamese donor bone straight hair, 14 inches length in piano blonde highlights, paired with 2by6 lace closure."
+    },
+    "received_at": "2026-09-25T08:18:25-07:00"
+  },
+  {
+    "id": "upload_13",
+    "image_reference": "image.png (SDD sassy curls 20\" 300g with 6by6 closure)",
+    "raw_input": "SDD sassy curls with 6by6 closure 20\" 185,000 300g",
+    "parsed_details": {
+      "name_or_style": "SDD sassy curls with 6by6 closure",
+      "hair_grade_or_type": "Super Double Drawn (SDD) Sassy Curls",
+      "length": "20\"",
+      "weight": "300g",
+      "closure": "6by6 closure",
+      "price": "₦185,000 (185k)",
+      "notes": "Super Double Drawn sassy deep curls texture, 20 inches, full 300g volume with high-definition 6by6 lace closure."
+    },
+    "received_at": "2026-09-25T08:19:36-07:00"
+  },
+  {
+    "id": "upload_14",
+    "image_reference": "image.png (SDD bounce curls 22\" with 13by4 swiss lace frontal)",
+    "raw_input": "SDD bounce curls with 13by4 full frontal swiss lace 22\"170,000",
+    "parsed_details": {
+      "name_or_style": "SDD bounce curls with 13by4 full frontal swiss lace",
+      "hair_grade_or_type": "Super Double Drawn (SDD) Bounce Curls",
+      "length": "22\"",
+      "lace_frontal": "13by4 full frontal Swiss lace",
+      "price": "₦170,000 (170k)",
+      "notes": "Super Double Drawn bouncy voluminous curls, 22 inches, fitted with an ear-to-ear 13by4 Swiss HD lace frontal."
+    },
+    "received_at": "2026-09-25T08:20:27-07:00"
+  },
+  {
+    "id": "upload_15",
+    "image_reference": "image.png (SDD body bounce curls 16\" with 5by5 closure)",
+    "raw_input": "SDD body bounce curls with 5by5 closure 16\" 140,000",
+    "parsed_details": {
+      "name_or_style": "SDD body bounce curls with 5by5 closure",
+      "hair_grade_or_type": "Super Double Drawn (SDD) Body Bounce Curls",
+      "length": "16\"",
+      "closure": "5by5 closure",
+      "price": "₦140,000 (140k)",
+      "notes": "Super Double Drawn body bounce curls, rich voluminous layered curls in 16 inches length with a 5by5 Swiss lace closure."
+    },
+    "received_at": "2026-09-25T08:21:38-07:00"
+  },
+  {
+    "id": "upload_16",
+    "image_reference": "image.png (SDD pixel curls 18\" burgundy with 5by5 closure)",
+    "raw_input": "SDD pixel curls with 5by5 18\" bungurdy colour 160,000",
+    "parsed_details": {
+      "name_or_style": "SDD pixel curls with 5by5 closure",
+      "hair_grade_or_type": "Super Double Drawn (SDD) Pixel Curls",
+      "length": "18\"",
+      "closure": "5by5 closure",
+      "color": "Burgundy (\"bungurdy\")",
+      "price": "₦160,000 (160k)",
+      "notes": "Super Double Drawn deep defined pixel curls, 18 inches in rich burgundy hue, paired with a 5by5 Swiss lace closure."
+    },
+    "received_at": "2026-09-25T08:28:34-07:00"
+  },
+  {
+    "id": "upload_17",
+    "image_reference": "image.png (SDD pixel curls piano colour with 13by4 full frontal swiss lace)",
+    "raw_input": "SDD pixel curls with 13by4 full frontal swiss lace piano colour 160,000",
+    "parsed_details": {
+      "name_or_style": "SDD pixel curls with 13by4 full frontal swiss lace",
+      "hair_grade_or_type": "Super Double Drawn (SDD) Pixel Curls",
+      "frontal": "13by4 full frontal Swiss lace",
+      "color": "Piano colour (piano blonde/brown highlight mix)",
+      "price": "₦160,000 (160k)",
+      "notes": "Super Double Drawn pixel curls unit in piano highlight tones, crafted with a 13by4 Swiss lace ear-to-ear frontal."
+    },
+    "received_at": "2026-09-25T08:32:03-07:00"
+  }
+]
