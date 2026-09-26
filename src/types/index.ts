@@ -144,3 +144,23 @@ export interface SiteSettings {
   isAnnouncementActive: boolean;
   freeDeliveryThreshold: number;
 }
+
+export interface SiteSettings {
+  // ...existing fields...
+  freeDeliveryThreshold: number;
+}
+
+export interface HeroSlide {
+  id: string;
+  image: string;
+  title: string;
+  subtitle: string;
+  tagline: string;
+  ctaPrimary: string;
+  ctaSecondary: string;
+  link: string;
+  displayOrder: number;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
