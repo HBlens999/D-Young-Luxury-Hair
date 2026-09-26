@@ -9,8 +9,8 @@ interface AdminLoginProps {
 
 export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onNavigateHome }) => {
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@dyoungluxuryhairs.com');
-  const [password, setPassword] = useState('LuxuryHair2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -100,12 +100,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onNavigateHom
                 className="w-full pl-9 pr-4 py-2.5 bg-[#1A1310] border border-[#3E2D24] text-xs text-[#FDFCF7] focus:outline-none focus:border-[#B89865]"
               />
             </div>
-          </div>
-
-          <div className="p-3 bg-[#1A1310]/80 border border-[#3E2D24] text-[11px] text-[#A68F7B] space-y-1">
-            <span className="font-semibold text-[#D6C2A7] block">Default Administrator Access:</span>
-            <p>Email: <code className="text-[#B89865]">admin@dyoungluxuryhairs.com</code></p>
-            <p>Password: <code className="text-[#B89865]">LuxuryHair2026</code></p>
           </div>
 
           <button
