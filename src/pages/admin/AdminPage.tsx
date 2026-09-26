@@ -5,6 +5,7 @@ import { AdminSidebar, AdminTab } from '../../components/admin/AdminSidebar';
 import { AdminDashboard } from './AdminDashboard';
 import { AdminProducts } from './AdminProducts';
 import { AdminCategories } from './AdminCategories';
+import { AdminHeroSlider } from './AdminHeroSlider';
 import { AdminOrders } from './AdminOrders';
 import { AdminBlog } from './AdminBlog';
 import { AdminVideos } from './AdminVideos';
@@ -53,6 +54,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigateHome }) => {
         return <AdminVideos />;
       case 'media':
         return <AdminMedia />;
+      case 'hero':
+        return <AdminHeroSlider />;
       case 'settings':
         return <AdminSettings />;
       default:
