@@ -17,15 +17,15 @@ interface HeroSlideshowProps {
   onNavigate: (path: string) => void;
 }
 
-export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
+export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({
+  onNavigate
+}) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
-  // Show the original hero slides immediately.
-  // Supabase will replace them in the background when its data arrives.
   const [slides, setSlides] = useState<HeroSlide[]>(
     HERO_SLIDES.map((slide, index) => ({
       ...slide,
@@ -39,7 +39,11 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { settings } = useSettings();
 
-  // Load editable hero slides from Supabase in the background
+  /*
+   * Load editable hero slides from Supabase.
+   * The bundled slides above remain available immediately
+   * while Supabase loads in the background.
+   */
   useEffect(() => {
     let isMounted = true;
 
@@ -49,18 +53,15 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
 
         if (!isMounted) return;
 
-        const publishedSlides = savedSlides.filter(
-          slide => slide.isPublished
-        );
+        const publishedSlides = savedSlides
+          .filter(slide => slide.isPublished)
+          .sort((a, b) => a.displayOrder - b.displayOrder);
 
-        // Only replace the instant fallback when Supabase
-        // actually has published slides.
         if (publishedSlides.length > 0) {
           setSlides(publishedSlides);
           setCurrentSlide(0);
         }
       } catch (error) {
-        // Keep the instant fallback slides if Supabase fails.
         console.warn(
           'Could not load hero slides from Supabase. Using default slides.',
           error
@@ -75,14 +76,49 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
     };
   }, []);
 
-  // Check prefers-reduced-motion
+  /*
+   * Preload the first published hero image as soon as
+   * the editable slides arrive.
+   */
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (!slides.length) return;
+
+    const firstImage = slides[0]?.image;
+
+    if (!firstImage) return;
+
+    const image = new Image();
+    image.src = firstImage;
+  }, [slides]);
+
+  /*
+   * Preload the next image whenever the active slide changes.
+   * This helps make transitions feel faster.
+   */
+  useEffect(() => {
+    if (slides.length <= 1) return;
+
+    const nextIndex = (currentSlide + 1) % slides.length;
+    const nextImage = slides[nextIndex]?.image;
+
+    if (!nextImage) return;
+
+    const image = new Image();
+    image.src = nextImage;
+  }, [currentSlide, slides]);
+
+  /*
+   * Check prefers-reduced-motion.
+   */
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    );
 
     setPrefersReducedMotion(mediaQuery.matches);
 
-    const handler = (e: MediaQueryListEvent) => {
-      setPrefersReducedMotion(e.matches);
+    const handler = (event: MediaQueryListEvent) => {
+      setPrefersReducedMotion(event.matches);
     };
 
     mediaQuery.addEventListener('change', handler);
@@ -101,10 +137,14 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
   const prevSlide = useCallback(() => {
     if (slides.length === 0) return;
 
-    setCurrentSlide(prev => (prev - 1 + slides.length) % slides.length);
+    setCurrentSlide(
+      prev => (prev - 1 + slides.length) % slides.length
+    );
   }, [slides.length]);
 
-  // Auto transition timer
+  /*
+   * Automatic slideshow.
+   */
   useEffect(() => {
     if (
       isPlaying &&
@@ -128,7 +168,9 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
     slides.length
   ]);
 
-  // Keep current slide valid if slides change
+  /*
+   * Keep current slide valid if the number of slides changes.
+   */
   useEffect(() => {
     if (slides.length === 0) {
       setCurrentSlide(0);
@@ -137,20 +179,22 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
     }
   }, [slides.length, currentSlide]);
 
-  // Touch Swipe handlers
+  /*
+   * Touch swipe.
+   */
   const minSwipeDistance = 50;
 
-  const onTouchStart = (e: React.TouchEvent) => {
+  const onTouchStart = (event: React.TouchEvent) => {
     setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+    setTouchStart(event.targetTouches[0].clientX);
   };
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+  const onTouchMove = (event: React.TouchEvent) => {
+    setTouchEnd(event.targetTouches[0].clientX);
   };
 
   const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+    if (touchStart === null || touchEnd === null) return;
 
     const distance = touchStart - touchEnd;
 
@@ -173,11 +217,27 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
     return null;
   }
 
+  /*
+   * WhatsApp remains connected to the active hero slide title.
+   */
   const whatsAppUrl =
     `https://wa.me/${cleanWhatsAppNumber}?text=` +
     encodeURIComponent(
       `Hello D Young Luxury Hairs, I would like to order from the ${activeSlide.title} collection.`
     );
+
+  /*
+   * These values now come directly from the Admin Hero Slider.
+   */
+  const primaryButtonText =
+    activeSlide.ctaPrimary?.trim() || 'SHOP NOW';
+
+  const secondaryButtonText =
+    activeSlide.ctaSecondary?.trim() ||
+    'ORDER VIA WHATSAPP';
+
+  const primaryButtonLink =
+    activeSlide.link?.trim() || '/shop';
 
   return (
     <section
@@ -201,7 +261,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
                 : 'opacity-0 z-0 pointer-events-none'
             }`}
           >
-            {/* Background Image or Luxury Atelier Backdrop */}
+            {/* Background Image */}
             <div
               className={`w-full h-full transform will-change-transform ${
                 isActive && !prefersReducedMotion
@@ -216,6 +276,9 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover object-center filter brightness-[0.82] contrast-[1.05]"
                   loading={index === 0 ? 'eager' : 'lazy'}
+                  fetchPriority={
+                    index === 0 ? 'high' : 'auto'
+                  }
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-tr from-[#160E0A] via-[#221610] to-[#120B07] flex items-center justify-center relative overflow-hidden">
@@ -234,7 +297,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
         );
       })}
 
-      {/* Official Exact Brand Logo Watermark in Hero */}
+      {/* Official Brand Logo Watermark */}
       {settings.logoUrl && (
         <div className="absolute top-6 right-6 sm:top-10 sm:right-10 z-20 pointer-events-none select-none flex items-center gap-3">
           <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden border border-[#D8B46E]/50 p-0.5 shadow-2xl bg-[#160E0A]/85 backdrop-blur-md opacity-80 sm:opacity-90">
@@ -252,7 +315,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
       <div className="relative z-20 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-16 sm:pb-20">
         <div className="max-w-2xl text-[#FDFCF7] space-y-4">
 
-          {/* Subtle Tagline with Official Brand Emblem */}
+          {/* Tagline */}
           <div className="inline-flex items-center gap-2.5 text-xs uppercase tracking-[0.22em] text-[#D6C2A7] font-medium bg-[#1A1310]/70 backdrop-blur-sm px-3.5 py-1.5 border border-[#B89865]/40 w-fit">
             {settings.logoUrl ? (
               <img
@@ -275,22 +338,25 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
             {activeSlide.title}
           </h1>
 
+          {/* Subtitle */}
           <p className="text-sm sm:text-base text-[#EBE3D8]/90 font-light max-w-xl leading-relaxed tracking-wide">
-            {activeSlide.subtitle}. Handcrafted with genuine Vietnamese temple hair, double-drawn density, and liquid mirror sheen.
+            {activeSlide.subtitle}
           </p>
 
           {/* Primary and Secondary Action CTAs */}
           <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
 
+            {/* PRIMARY BUTTON */}
             <button
-              onClick={() => onNavigate('/shop')}
+              onClick={() => onNavigate(primaryButtonLink)}
               className="px-8 py-3.5 bg-[#FDFCF7] text-[#1A1310] hover:bg-[#EBE3D8] text-xs uppercase tracking-[0.18em] font-semibold transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-lg"
             >
-              <span>SHOP NOW</span>
+              <span>{primaryButtonText}</span>
 
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
 
+            {/* WHATSAPP BUTTON */}
             <a
               href={whatsAppUrl}
               target="_blank"
@@ -299,7 +365,7 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
             >
               <MessageCircle className="w-4 h-4 fill-white" />
 
-              <span>ORDER VIA WHATSAPP</span>
+              <span>{secondaryButtonText}</span>
             </a>
           </div>
         </div>
@@ -312,8 +378,16 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
         <button
           onClick={() => setIsPlaying(!isPlaying)}
           className="text-[#D6C2A7] hover:text-[#FDFCF7] p-1 transition-colors focus:outline-none"
-          title={isPlaying ? 'Pause slideshow' : 'Play slideshow'}
-          aria-label={isPlaying ? 'Pause slideshow' : 'Play slideshow'}
+          title={
+            isPlaying
+              ? 'Pause slideshow'
+              : 'Play slideshow'
+          }
+          aria-label={
+            isPlaying
+              ? 'Pause slideshow'
+              : 'Play slideshow'
+          }
         >
           {isPlaying ? (
             <Pause className="w-3.5 h-3.5" />
@@ -326,16 +400,16 @@ export const HeroSlideshow: React.FC<HeroSlideshowProps> = ({ onNavigate }) => {
 
         {/* Indicators */}
         <div className="flex items-center gap-1.5 px-1">
-          {slides.map((_, i) => (
+          {slides.map((_, index) => (
             <button
-              key={i}
-              onClick={() => setCurrentSlide(i)}
+              key={index}
+              onClick={() => setCurrentSlide(index)}
               className={`h-1.5 transition-all duration-300 rounded-none focus:outline-none ${
-                i === currentSlide
+                index === currentSlide
                   ? 'w-6 bg-[#B89865]'
                   : 'w-2 bg-[#EBE3D8]/30 hover:bg-[#EBE3D8]/60'
               }`}
-              aria-label={`Go to slide ${i + 1}`}
+              aria-label={`Go to slide ${index + 1}`}
             />
           ))}
         </div>
