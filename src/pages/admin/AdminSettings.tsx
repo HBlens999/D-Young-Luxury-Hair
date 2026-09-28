@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import {
   SUPABASE_URL,
-  SUPABASE_ANON_KEY,
   isSupabaseConfigured,
   SUPABASE_SQL_SCHEMA,
   supabase
@@ -20,6 +19,26 @@ import {
 
 const WEBSITE_IMAGE_BUCKET = 'website-images';
 
+/**
+ * Image optimization settings.
+ *
+ * Images are resized and compressed in the browser BEFORE
+ * they are uploaded to Supabase. This prevents large phone
+ * photographs from taking several minutes to upload.
+ */
+const IMAGE_SETTINGS = {
+  logo: {
+    maxWidth: 1200,
+    maxHeight: 1200,
+    quality: 0.88
+  },
+  ceo: {
+    maxWidth: 1600,
+    maxHeight: 1600,
+    quality: 0.86
+  }
+};
+
 export const AdminSettings: React.FC = () => {
   const { settings, updateSettings } = useSettings();
 
@@ -33,7 +52,119 @@ export const AdminSettings: React.FC = () => {
   const [uploadingCeo, setUploadingCeo] = useState(false);
 
   /**
-   * Upload an image permanently to Supabase Storage.
+   * Resize and compress an image in the browser before upload.
+   *
+   * This prevents large phone/camera images from being uploaded
+   * at their original multi-megabyte size.
+   */
+  const optimizeImage = async (
+    file: File,
+    folder: 'logo' | 'ceo'
+  ): Promise<File> => {
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Please select a valid image file.');
+    }
+
+    const config = IMAGE_SETTINGS[folder];
+
+    const objectUrl = URL.createObjectURL(file);
+
+    try {
+      const image = new Image();
+
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () =>
+          reject(
+            new Error(
+              'This image could not be processed. Please choose a JPG, PNG or WebP image.'
+            )
+          );
+
+        image.src = objectUrl;
+      });
+
+      let width = image.naturalWidth;
+      let height = image.naturalHeight;
+
+      if (!width || !height) {
+        throw new Error('The selected image has invalid dimensions.');
+      }
+
+      const scale = Math.min(
+        1,
+        config.maxWidth / width,
+        config.maxHeight / height
+      );
+
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+
+      const canvas = document.createElement('canvas');
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        throw new Error(
+          'Your browser could not prepare the image for upload.'
+        );
+      }
+
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+
+      context.drawImage(
+        image,
+        0,
+        0,
+        width,
+        height
+      );
+
+      const optimizedBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(
+          blob => resolve(blob),
+          'image/webp',
+          config.quality
+        );
+      });
+
+      if (!optimizedBlob) {
+        throw new Error(
+          'The browser could not compress the selected image.'
+        );
+      }
+
+      /**
+       * If WebP compression somehow produces a larger file than
+       * the original, use the original only when it is already
+       * reasonably small.
+       */
+      if (
+        optimizedBlob.size >= file.size &&
+        file.size <= 800 * 1024
+      ) {
+        return file;
+      }
+
+      return new File(
+        [optimizedBlob],
+        `${folder}-${Date.now()}.webp`,
+        {
+          type: 'image/webp',
+          lastModified: Date.now()
+        }
+      );
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  };
+
+  /**
+   * Upload an optimized image permanently to Supabase Storage.
    */
   const uploadImage = async (
     file: File,
@@ -49,23 +180,36 @@ export const AdminSettings: React.FC = () => {
       throw new Error('Please select a valid image file.');
     }
 
-    if (file.size > 15 * 1024 * 1024) {
-      throw new Error('Image is too large. Maximum allowed size is 15MB.');
+    /**
+     * Allow the original selected file to be reasonably large,
+     * because we optimize it before uploading.
+     */
+    if (file.size > 50 * 1024 * 1024) {
+      throw new Error(
+        'This image is extremely large. Please choose an image below 50MB.'
+      );
     }
 
-    const extension =
-      file.name.split('.').pop()?.toLowerCase() ||
-      file.type.split('/')[1] ||
-      'jpg';
+    setSaveStatus(
+      folder === 'ceo'
+        ? 'Preparing CEO photograph for fast upload...'
+        : 'Preparing logo for fast upload...'
+    );
 
-    const filePath = `branding/${folder}-${Date.now()}.${extension}`;
+    const optimizedFile = await optimizeImage(file, folder);
+
+    setSaveStatus(
+      `${folder === 'ceo' ? 'CEO photograph' : 'Logo'} optimized. Uploading...`
+    );
+
+    const filePath = `branding/${folder}-${Date.now()}.webp`;
 
     const { error } = await supabase.storage
       .from(WEBSITE_IMAGE_BUCKET)
-      .upload(filePath, file, {
+      .upload(filePath, optimizedFile, {
         cacheControl: '31536000',
         upsert: false,
-        contentType: file.type
+        contentType: 'image/webp'
       });
 
     if (error) {
@@ -77,7 +221,9 @@ export const AdminSettings: React.FC = () => {
       .getPublicUrl(filePath);
 
     if (!data?.publicUrl) {
-      throw new Error('Image uploaded, but a public URL could not be generated.');
+      throw new Error(
+        'Image uploaded, but a public URL could not be generated.'
+      );
     }
 
     return data.publicUrl;
@@ -105,7 +251,7 @@ export const AdminSettings: React.FC = () => {
       }));
 
       setSaveStatus(
-        'Logo uploaded successfully. Click "Save Store Settings" to make it permanent in the site settings.'
+        'Logo uploaded successfully. Click "Save Store Settings" to save the new logo.'
       );
     } catch (error: any) {
       setSaveStatus(
@@ -139,7 +285,7 @@ export const AdminSettings: React.FC = () => {
       }));
 
       setSaveStatus(
-        'CEO photograph uploaded successfully. Click "Save Store Settings" to make it permanent in the site settings.'
+        'CEO photograph uploaded successfully. Click "Save Store Settings" to save the new CEO image.'
       );
     } catch (error: any) {
       setSaveStatus(
@@ -361,16 +507,18 @@ export const AdminSettings: React.FC = () => {
                   className="flex-1 px-3 py-2 bg-[#FBF9F5] border border-[#EAE2D7] text-[#291C16] focus:outline-none focus:border-[#8C6A48]"
                 />
 
-                <label className={`px-4 py-2 ${
-                  uploadingLogo
-                    ? 'bg-[#8C6A48]'
-                    : 'bg-[#291C16] hover:bg-[#3E2D24]'
-                } text-[#FDFCF7] text-xs font-medium cursor-pointer transition-colors flex items-center justify-center gap-1.5 shrink-0`}>
+                <label
+                  className={`px-4 py-2 ${
+                    uploadingLogo
+                      ? 'bg-[#8C6A48] cursor-wait'
+                      : 'bg-[#291C16] hover:bg-[#3E2D24] cursor-pointer'
+                  } text-[#FDFCF7] text-xs font-medium transition-colors flex items-center justify-center gap-1.5 shrink-0`}
+                >
 
                   {uploadingLogo ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Uploading...</span>
+                      <span>Preparing / Uploading...</span>
                     </>
                   ) : (
                     <>
@@ -381,7 +529,7 @@ export const AdminSettings: React.FC = () => {
 
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/jpg"
                     className="hidden"
                     disabled={uploadingLogo}
                     onChange={handleLogoUpload}
@@ -392,7 +540,8 @@ export const AdminSettings: React.FC = () => {
               </div>
 
               <p className="text-[11px] text-[#8C6A48] font-light">
-                Uploaded images are stored permanently in Supabase Storage.
+                Images are automatically resized and compressed before upload.
+                You do not need to use Supabase directly.
               </p>
 
             </div>
@@ -446,16 +595,18 @@ export const AdminSettings: React.FC = () => {
                   className="flex-1 px-3 py-2 bg-[#FBF9F5] border border-[#EAE2D7] text-[#291C16] focus:outline-none focus:border-[#8C6A48]"
                 />
 
-                <label className={`px-4 py-2 ${
-                  uploadingCeo
-                    ? 'bg-[#8C6A48]'
-                    : 'bg-[#291C16] hover:bg-[#3E2D24]'
-                } text-[#FDFCF7] text-xs font-medium cursor-pointer transition-colors flex items-center justify-center gap-1.5 shrink-0`}>
+                <label
+                  className={`px-4 py-2 ${
+                    uploadingCeo
+                      ? 'bg-[#8C6A48] cursor-wait'
+                      : 'bg-[#291C16] hover:bg-[#3E2D24] cursor-pointer'
+                  } text-[#FDFCF7] text-xs font-medium transition-colors flex items-center justify-center gap-1.5 shrink-0`}
+                >
 
                   {uploadingCeo ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Uploading...</span>
+                      <span>Preparing / Uploading...</span>
                     </>
                   ) : (
                     <>
@@ -466,7 +617,7 @@ export const AdminSettings: React.FC = () => {
 
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/jpg"
                     className="hidden"
                     disabled={uploadingCeo}
                     onChange={handleCeoUpload}
@@ -477,7 +628,8 @@ export const AdminSettings: React.FC = () => {
               </div>
 
               <p className="text-[11px] text-[#8C6A48] font-light">
-                The CEO photograph is stored permanently in Supabase Storage.
+                CEO photographs are automatically resized and compressed before upload.
+                Your client does not need to copy or paste any Supabase URL.
               </p>
 
             </div>
