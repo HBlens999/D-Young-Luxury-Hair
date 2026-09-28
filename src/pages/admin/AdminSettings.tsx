@@ -18,7 +18,7 @@ import {
   Upload
 } from 'lucide-react';
 
-const WEBSITE_IMAGE_BUCKET = 'WEBSITE IMAGE';
+const WEBSITE_IMAGE_BUCKET = 'website-images';
 
 export const AdminSettings: React.FC = () => {
   const { settings, updateSettings } = useSettings();
