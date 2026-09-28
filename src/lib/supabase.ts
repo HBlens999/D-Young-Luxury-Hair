@@ -55,7 +55,6 @@ const STORAGE_KEYS = {
   ORDERS: 'dy_luxury_orders_v2',
   BLOG_POSTS: 'dy_luxury_blog_posts_v2',
   VIDEOS: 'dy_luxury_videos_v2',
-  HERO_SLIDES: 'dy_luxury_hero_slides_v1',
   SETTINGS: 'dy_luxury_settings_v2'
 };
 
@@ -797,56 +796,63 @@ export const db = {
   // ==========================================
 
   async getHeroSlides(): Promise<HeroSlide[]> {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('hero_slides')
-          .select('*')
-          .order('display_order', {
-            ascending: true
-          });
-
-        if (error) {
-          console.error(
-            'Supabase hero slides fetch failed:',
-            error
-          );
-        } else if (data) {
-          return data.map((s: any) => ({
-            id: s.id,
-            image: s.image,
-            title: s.title,
-            subtitle: s.subtitle || '',
-            tagline: s.tagline || '',
-            ctaPrimary:
-              s.cta_primary || 'Shop Collection',
-            ctaSecondary:
-              s.cta_secondary || 'Order via WhatsApp',
-            link: s.link || '/shop',
-            displayOrder:
-              Number(s.display_order ?? 0),
-            isPublished:
-              Boolean(s.is_published),
-            createdAt:
-              s.created_at ||
-              new Date().toISOString(),
-            updatedAt:
-              s.updated_at ||
-              new Date().toISOString()
-          }));
-        }
-      } catch (err) {
-        console.error(
-          'Supabase hero slides fetch error:',
-          err
-        );
-      }
+    if (!supabase) {
+      return [];
     }
 
-    return getLocalItem<HeroSlide[]>(
-      STORAGE_KEYS.HERO_SLIDES,
-      []
-    );
+    try {
+      const { data, error } = await supabase
+        .from('hero_slides')
+        .select('*')
+        .order('display_order', {
+          ascending: true
+        });
+
+      if (error) {
+        console.error(
+          'Supabase hero slides fetch failed:',
+          error
+        );
+
+        throw new Error(
+          `Failed to load hero slides: ${error.message}`
+        );
+      }
+
+      if (!data) {
+        return [];
+      }
+
+      return data.map((s: any) => ({
+        id: s.id,
+        image: s.image || '',
+        title: s.title || '',
+        subtitle: s.subtitle || '',
+        tagline: s.tagline || '',
+        ctaPrimary:
+          s.cta_primary || 'Shop Collection',
+        ctaSecondary:
+          s.cta_secondary || 'Order via WhatsApp',
+        link: s.link || '/shop',
+        displayOrder:
+          Number(s.display_order ?? 0),
+        isPublished:
+          Boolean(s.is_published),
+        createdAt:
+          s.created_at ||
+          new Date().toISOString(),
+        updatedAt:
+          s.updated_at ||
+          new Date().toISOString()
+      }));
+    } catch (err) {
+      console.error(
+        'Supabase hero slides fetch error:',
+        err
+      );
+
+      throw err;
+    }
   },
 
   async saveHeroSlide(
@@ -859,20 +865,25 @@ export const db = {
       );
     }
 
+    const updatedSlide: HeroSlide = {
+      ...slide,
+      updatedAt: new Date().toISOString()
+    };
+
     const { error } = await supabase
       .from('hero_slides')
       .upsert({
-        id: slide.id,
-        image: slide.image,
-        title: slide.title,
-        subtitle: slide.subtitle,
-        tagline: slide.tagline,
-        cta_primary: slide.ctaPrimary,
-        cta_secondary: slide.ctaSecondary,
-        link: slide.link,
-        display_order: slide.displayOrder,
-        is_published: slide.isPublished,
-        updated_at: new Date().toISOString()
+        id: updatedSlide.id,
+        image: updatedSlide.image || '',
+        title: updatedSlide.title,
+        subtitle: updatedSlide.subtitle,
+        tagline: updatedSlide.tagline,
+        cta_primary: updatedSlide.ctaPrimary,
+        cta_secondary: updatedSlide.ctaSecondary,
+        link: updatedSlide.link,
+        display_order: updatedSlide.displayOrder,
+        is_published: updatedSlide.isPublished,
+        updated_at: updatedSlide.updatedAt
       });
 
     if (error) {
@@ -886,29 +897,12 @@ export const db = {
       );
     }
 
-    const current = getLocalItem<HeroSlide[]>(
-      STORAGE_KEYS.HERO_SLIDES,
-      []
-    );
+    // Hero slides are stored only in Supabase.
+    // Images are stored in Supabase Storage and
+    // only their URLs are saved in hero_slides.
+    // Nothing is written to localStorage here.
 
-    const index = current.findIndex(
-      s => s.id === slide.id
-    );
-
-    const updated = [...current];
-
-    if (index >= 0) {
-      updated[index] = slide;
-    } else {
-      updated.push(slide);
-    }
-
-    setLocalItem(
-      STORAGE_KEYS.HERO_SLIDES,
-      updated
-    );
-
-    return slide;
+    return updatedSlide;
   },
 
   async deleteHeroSlide(
@@ -937,16 +931,7 @@ export const db = {
       );
     }
 
-    const current = getLocalItem<HeroSlide[]>(
-      STORAGE_KEYS.HERO_SLIDES,
-      []
-    );
-
-    setLocalItem(
-      STORAGE_KEYS.HERO_SLIDES,
-      current.filter(s => s.id !== id)
-    );
-
+    // Nothing is written to localStorage.
     return true;
   },
 
