@@ -853,8 +853,6 @@ export const db = {
     slide: HeroSlide
   ): Promise<HeroSlide> {
 
-    // Hero slides must be saved to Supabase.
-    // Do not silently fall back to local storage.
     if (!supabase) {
       throw new Error(
         'Supabase is not configured. Hero slide was not saved.'
@@ -888,7 +886,6 @@ export const db = {
       );
     }
 
-    // Update local cache only AFTER Supabase succeeds.
     const current = getLocalItem<HeroSlide[]>(
       STORAGE_KEYS.HERO_SLIDES,
       []
@@ -971,64 +968,98 @@ export const db = {
             brandName:
               data.brand_name ||
               INITIAL_SETTINGS.brandName,
+
             tagline:
               data.tagline ||
               INITIAL_SETTINGS.tagline,
+
             slogan:
               data.slogan ||
               INITIAL_SETTINGS.slogan,
+
             whatsAppNumber:
               data.whatsapp_number ||
               INITIAL_SETTINGS.whatsAppNumber,
+
             phoneNumber:
               data.phone_number ||
               INITIAL_SETTINGS.phoneNumber,
+
             email:
               data.email ||
               INITIAL_SETTINGS.email,
+
             showroomAddress:
               data.showroom_address ||
               INITIAL_SETTINGS.showroomAddress,
+
             headOffice:
               data.head_office ||
               INITIAL_SETTINGS.headOffice,
+
             branch1:
               data.branch1 ||
               INITIAL_SETTINGS.branch1,
+
             branch2:
               data.branch2 ||
               INITIAL_SETTINGS.branch2,
+
             city:
               data.city ||
               INITIAL_SETTINGS.city,
+
             businessHours:
               data.business_hours ||
               INITIAL_SETTINGS.businessHours,
+
             deliveryInfo:
               data.delivery_info ||
               INITIAL_SETTINGS.deliveryInfo,
+
             instagramUrl:
               data.instagram_url ||
               INITIAL_SETTINGS.instagramUrl,
+
             facebookUrl:
               data.facebook_url || '',
+
             tiktokUrl:
               data.tiktok_url ||
               INITIAL_SETTINGS.tiktokUrl,
+
+            logoUrl:
+              data.logo_url ||
+              INITIAL_SETTINGS.logoUrl,
+
+            ceoImageUrl:
+              data.ceo_image_url ||
+              INITIAL_SETTINGS.ceoImageUrl,
+
             currencySymbol:
               data.currency_symbol || '₦',
+
             announcementText:
               data.announcement_text ||
               INITIAL_SETTINGS.announcementText,
+
             isAnnouncementActive:
               Boolean(
                 data.is_announcement_active ?? true
               ),
+
             freeDeliveryThreshold:
               Number(
                 data.free_delivery_threshold || 400000
               )
           };
+        }
+
+        if (error) {
+          console.warn(
+            'Supabase settings fetch returned an error:',
+            error
+          );
         }
       } catch (err) {
         console.warn(
@@ -1047,51 +1078,100 @@ export const db = {
   async saveSettings(
     settings: SiteSettings
   ): Promise<SiteSettings> {
-    if (supabase) {
-      try {
-        await supabase.from('site_settings').upsert({
-          id: 'default_settings',
-          brand_name: settings.brandName,
-          tagline: settings.tagline,
-          slogan: settings.slogan,
-          whatsapp_number: settings.whatsAppNumber,
-          phone_number: settings.phoneNumber,
-          email: settings.email,
-          showroom_address:
-            settings.showroomAddress,
-          head_office: settings.headOffice,
-          branch1: settings.branch1,
-          branch2: settings.branch2,
-          city: settings.city,
-          business_hours:
-            settings.businessHours,
-          delivery_info:
-            settings.deliveryInfo,
-          instagram_url:
-            settings.instagramUrl,
-          facebook_url:
-            settings.facebookUrl,
-          tiktok_url:
-            settings.tiktokUrl,
-          currency_symbol:
-            settings.currencySymbol,
-          announcement_text:
-            settings.announcementText,
-          is_announcement_active:
-            settings.isAnnouncementActive,
-          free_delivery_threshold:
-            settings.freeDeliveryThreshold,
-          updated_at:
-            new Date().toISOString()
-        });
-      } catch (err) {
-        console.warn(
-          'Supabase settings save error:',
-          err
-        );
-      }
+
+    if (!supabase) {
+      throw new Error(
+        'Supabase is not configured. Settings were not saved.'
+      );
     }
 
+    const { error } = await supabase
+      .from('site_settings')
+      .upsert({
+        id: 'default_settings',
+
+        brand_name:
+          settings.brandName,
+
+        tagline:
+          settings.tagline,
+
+        slogan:
+          settings.slogan,
+
+        whatsapp_number:
+          settings.whatsAppNumber,
+
+        phone_number:
+          settings.phoneNumber,
+
+        email:
+          settings.email,
+
+        showroom_address:
+          settings.showroomAddress,
+
+        head_office:
+          settings.headOffice,
+
+        branch1:
+          settings.branch1,
+
+        branch2:
+          settings.branch2,
+
+        city:
+          settings.city,
+
+        business_hours:
+          settings.businessHours,
+
+        delivery_info:
+          settings.deliveryInfo,
+
+        instagram_url:
+          settings.instagramUrl,
+
+        facebook_url:
+          settings.facebookUrl,
+
+        tiktok_url:
+          settings.tiktokUrl,
+
+        logo_url:
+          settings.logoUrl,
+
+        ceo_image_url:
+          settings.ceoImageUrl,
+
+        currency_symbol:
+          settings.currencySymbol,
+
+        announcement_text:
+          settings.announcementText,
+
+        is_announcement_active:
+          settings.isAnnouncementActive,
+
+        free_delivery_threshold:
+          settings.freeDeliveryThreshold,
+
+        updated_at:
+          new Date().toISOString()
+      });
+
+    if (error) {
+      console.error(
+        'Supabase settings save failed:',
+        error
+      );
+
+      throw new Error(
+        `Failed to save store settings: ${error.message}`
+      );
+    }
+
+    // Only update local cache AFTER Supabase succeeds.
     setLocalItem(
       STORAGE_KEYS.SETTINGS,
       settings
