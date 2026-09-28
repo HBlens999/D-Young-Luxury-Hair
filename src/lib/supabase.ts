@@ -72,7 +72,7 @@ function getLocalItem<T>(key: string, defaultValue: T): T {
       const hasOldDemo = parsed.some(
         (p: any) =>
           p.id === 'prod-1' &&
-          p.name.includes('SDD Vietnamese Bone Straight Bundles') &&
+          p.name?.includes('SDD Vietnamese Bone Straight Bundles') &&
           p.minPrice === 195000
       );
 
@@ -161,11 +161,15 @@ export const db = {
             updatedAt: p.updated_at
           }));
         }
+
+        return [];
       } catch (err) {
         console.error(
           'Supabase products fetch failed:',
           err
         );
+
+        throw err;
       }
     }
 
@@ -287,7 +291,7 @@ export const db = {
 
       const current = getLocalItem<Product[]>(
         STORAGE_KEYS.PRODUCTS,
-        INITIAL_PRODUCTS
+        []
       );
 
       const existingIndex = current.findIndex(
@@ -321,7 +325,6 @@ export const db = {
         err
       );
 
-      // Do NOT silently save failed products to localStorage.
       throw err;
     }
   },
@@ -358,7 +361,7 @@ export const db = {
 
       const current = getLocalItem<Product[]>(
         STORAGE_KEYS.PRODUCTS,
-        INITIAL_PRODUCTS
+        []
       );
 
       setLocalItem(
@@ -392,26 +395,38 @@ export const db = {
 
         if (error) {
           console.error(
-            'Supabase categories fetch error:',
+            'Supabase categories fetch failed:',
             error
+          );
+
+          throw new Error(
+            `Failed to load categories: ${error.message}`
           );
         }
 
-        if (!error && data && data.length > 0) {
-          return data.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            slug: c.slug,
-            description: c.description,
-            image: c.image,
-            displayOrder: c.display_order
-          }));
-        }
+        // IMPORTANT:
+        // If Supabase successfully returns an empty table,
+        // return an empty array.
+        //
+        // DO NOT fall back to INITIAL_CATEGORIES because
+        // those local IDs may not exist in Supabase and can
+        // cause product foreign-key errors.
+        return (data || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          slug: c.slug,
+          description: c.description || '',
+          image: c.image || '',
+          displayOrder: Number(c.display_order ?? 0)
+        }));
+
       } catch (err) {
-        console.warn(
-          'Supabase categories fetch error:',
+        console.error(
+          'Supabase categories fetch failed:',
           err
         );
+
+        throw err;
       }
     }
 
@@ -424,87 +439,134 @@ export const db = {
   async saveCategory(
     cat: ProductCategory
   ): Promise<ProductCategory> {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from('product_categories')
-          .upsert({
-            id: cat.id,
-            name: cat.name,
-            slug: cat.slug,
-            description: cat.description,
-            image: cat.image,
-            display_order: cat.displayOrder
-          });
 
-        if (error) {
-          console.error(
-            'Supabase category save error:',
-            error
-          );
-        }
-      } catch (err) {
-        console.warn(
-          'Supabase category save error:',
-          err
+    if (!supabase) {
+      throw new Error(
+        'Supabase is not configured. Category was not saved.'
+      );
+    }
+
+    try {
+      const categoryToSave = {
+        id: cat.id,
+        name: cat.name,
+        slug: cat.slug,
+        description: cat.description || '',
+        image: cat.image || '',
+        display_order: Number(cat.displayOrder ?? 0)
+      };
+
+      const { data, error } = await supabase
+        .from('product_categories')
+        .upsert(categoryToSave)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(
+          'Supabase category save failed:',
+          error
+        );
+
+        throw new Error(
+          `Category save failed: ${error.message}`
         );
       }
+
+      if (!data) {
+        throw new Error(
+          'Category save failed: Supabase returned no category.'
+        );
+      }
+
+      const savedCategory: ProductCategory = {
+        id: data.id,
+        name: data.name,
+        slug: data.slug,
+        description: data.description || '',
+        image: data.image || '',
+        displayOrder: Number(data.display_order ?? 0)
+      };
+
+      // Only cache locally AFTER Supabase succeeds.
+      const current = getLocalItem<ProductCategory[]>(
+        STORAGE_KEYS.CATEGORIES,
+        []
+      );
+
+      const idx = current.findIndex(
+        c => c.id === savedCategory.id
+      );
+
+      const updated =
+        idx >= 0
+          ? current.map((c, i) =>
+              i === idx ? savedCategory : c
+            )
+          : [savedCategory, ...current];
+
+      setLocalItem(
+        STORAGE_KEYS.CATEGORIES,
+        updated
+      );
+
+      return savedCategory;
+
+    } catch (err) {
+      console.error(
+        'Supabase category save failed:',
+        err
+      );
+
+      throw err;
     }
-
-    const current = getLocalItem<ProductCategory[]>(
-      STORAGE_KEYS.CATEGORIES,
-      INITIAL_CATEGORIES
-    );
-
-    const idx = current.findIndex(c => c.id === cat.id);
-
-    let updated: ProductCategory[];
-
-    if (idx >= 0) {
-      updated = [...current];
-      updated[idx] = cat;
-    } else {
-      updated = [...current, cat];
-    }
-
-    setLocalItem(STORAGE_KEYS.CATEGORIES, updated);
-
-    return cat;
   },
 
   async deleteCategory(id: string): Promise<boolean> {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from('product_categories')
-          .delete()
-          .eq('id', id);
 
-        if (error) {
-          console.error(
-            'Supabase category delete error:',
-            error
-          );
-        }
-      } catch (err) {
-        console.warn(
-          'Supabase category delete error:',
-          err
-        );
-      }
+    if (!supabase) {
+      throw new Error(
+        'Supabase is not configured. Category was not deleted.'
+      );
     }
 
-    const current = getLocalItem<ProductCategory[]>(
-      STORAGE_KEYS.CATEGORIES,
-      INITIAL_CATEGORIES
-    );
+    try {
+      const { error } = await supabase
+        .from('product_categories')
+        .delete()
+        .eq('id', id);
 
-    setLocalItem(
-      STORAGE_KEYS.CATEGORIES,
-      current.filter(c => c.id !== id)
-    );
+      if (error) {
+        console.error(
+          'Supabase category delete failed:',
+          error
+        );
 
-    return true;
+        throw new Error(
+          `Category delete failed: ${error.message}`
+        );
+      }
+
+      const current = getLocalItem<ProductCategory[]>(
+        STORAGE_KEYS.CATEGORIES,
+        []
+      );
+
+      setLocalItem(
+        STORAGE_KEYS.CATEGORIES,
+        current.filter(c => c.id !== id)
+      );
+
+      return true;
+
+    } catch (err) {
+      console.error(
+        'Supabase category delete failed:',
+        err
+      );
+
+      throw err;
+    }
   },
 
   // ==========================================
@@ -519,7 +581,7 @@ export const db = {
           .select('*, order_items(*)')
           .order('created_at', { ascending: false });
 
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           return data.map((o: any) => ({
             id: o.id,
             customerName: o.customer_name,
@@ -568,6 +630,7 @@ export const db = {
   async createOrder(
     order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<Order> {
+
     const newOrder: Order = {
       ...order,
       id:
@@ -651,6 +714,7 @@ export const db = {
     orderId: string,
     status: Order['status']
   ): Promise<boolean> {
+
     if (supabase) {
       try {
         const { error } = await supabase
@@ -690,7 +754,10 @@ export const db = {
         : o
     );
 
-    setLocalItem(STORAGE_KEYS.ORDERS, updated);
+    setLocalItem(
+      STORAGE_KEYS.ORDERS,
+      updated
+    );
 
     return true;
   },
@@ -707,7 +774,7 @@ export const db = {
           .select('*')
           .order('published_at', { ascending: false });
 
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           return data.map((b: any) => ({
             id: b.id,
             title: b.title,
@@ -751,60 +818,60 @@ export const db = {
   async saveBlogPost(
     post: BlogPost
   ): Promise<BlogPost> {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from('blog_posts')
-          .upsert({
-            id: post.id,
-            title: post.title,
-            slug: post.slug,
-            category_id: post.categoryId,
-            category_name: post.categoryName,
-            excerpt: post.excerpt,
-            content: post.content,
-            featured_image: post.featuredImage,
-            author: post.author,
-            read_time: post.readTime,
-            recommended_product_id:
-              post.recommendedProductId,
-            is_published: post.isPublished,
-            published_at: post.publishedAt,
-            seo_title: post.seoTitle,
-            seo_description: post.seoDescription
-          });
 
-        if (error) {
-          console.warn(
-            'Supabase blog post save error:',
-            error
-          );
-        }
-      } catch (err) {
-        console.warn(
-          'Supabase blog post save error:',
-          err
-        );
-      }
+    if (!supabase) {
+      throw new Error(
+        'Supabase is not configured. Blog post was not saved.'
+      );
+    }
+
+    const { error } = await supabase
+      .from('blog_posts')
+      .upsert({
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        category_id: post.categoryId,
+        category_name: post.categoryName,
+        excerpt: post.excerpt,
+        content: post.content,
+        featured_image: post.featuredImage,
+        author: post.author,
+        read_time: post.readTime,
+        recommended_product_id:
+          post.recommendedProductId,
+        is_published: post.isPublished,
+        published_at: post.publishedAt,
+        seo_title: post.seoTitle,
+        seo_description: post.seoDescription
+      });
+
+    if (error) {
+      console.error(
+        'Supabase blog post save failed:',
+        error
+      );
+
+      throw new Error(
+        `Blog post save failed: ${error.message}`
+      );
     }
 
     const current = getLocalItem<BlogPost[]>(
       STORAGE_KEYS.BLOG_POSTS,
-      INITIAL_BLOG_POSTS
+      []
     );
 
     const idx = current.findIndex(
       b => b.id === post.id
     );
 
-    let updated: BlogPost[];
-
-    if (idx >= 0) {
-      updated = [...current];
-      updated[idx] = post;
-    } else {
-      updated = [post, ...current];
-    }
+    const updated =
+      idx >= 0
+        ? current.map((b, i) =>
+            i === idx ? post : b
+          )
+        : [post, ...current];
 
     setLocalItem(
       STORAGE_KEYS.BLOG_POSTS,
@@ -817,30 +884,32 @@ export const db = {
   async deleteBlogPost(
     id: string
   ): Promise<boolean> {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from('blog_posts')
-          .delete()
-          .eq('id', id);
 
-        if (error) {
-          console.warn(
-            'Supabase blog post delete error:',
-            error
-          );
-        }
-      } catch (err) {
-        console.warn(
-          'Supabase blog post delete error:',
-          err
-        );
-      }
+    if (!supabase) {
+      throw new Error(
+        'Supabase is not configured. Blog post was not deleted.'
+      );
+    }
+
+    const { error } = await supabase
+      .from('blog_posts')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error(
+        'Supabase blog post delete failed:',
+        error
+      );
+
+      throw new Error(
+        `Blog post delete failed: ${error.message}`
+      );
     }
 
     const current = getLocalItem<BlogPost[]>(
       STORAGE_KEYS.BLOG_POSTS,
-      INITIAL_BLOG_POSTS
+      []
     );
 
     setLocalItem(
@@ -863,7 +932,7 @@ export const db = {
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           return data.map((v: any) => ({
             id: v.id,
             title: v.title,
@@ -900,53 +969,53 @@ export const db = {
   async saveVideo(
     video: VideoItem
   ): Promise<VideoItem> {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from('videos')
-          .upsert({
-            id: video.id,
-            title: video.title,
-            description: video.description,
-            video_url: video.videoUrl,
-            thumbnail_url: video.thumbnailUrl,
-            category: video.category,
-            duration: video.duration,
-            is_published: video.isPublished,
-            created_at: video.createdAt
-          });
 
-        if (error) {
-          console.warn(
-            'Supabase video save error:',
-            error
-          );
-        }
-      } catch (err) {
-        console.warn(
-          'Supabase video save error:',
-          err
-        );
-      }
+    if (!supabase) {
+      throw new Error(
+        'Supabase is not configured. Video was not saved.'
+      );
+    }
+
+    const { error } = await supabase
+      .from('videos')
+      .upsert({
+        id: video.id,
+        title: video.title,
+        description: video.description,
+        video_url: video.videoUrl,
+        thumbnail_url: video.thumbnailUrl,
+        category: video.category,
+        duration: video.duration,
+        is_published: video.isPublished,
+        created_at: video.createdAt
+      });
+
+    if (error) {
+      console.error(
+        'Supabase video save failed:',
+        error
+      );
+
+      throw new Error(
+        `Video save failed: ${error.message}`
+      );
     }
 
     const current = getLocalItem<VideoItem[]>(
       STORAGE_KEYS.VIDEOS,
-      INITIAL_VIDEOS
+      []
     );
 
     const idx = current.findIndex(
       v => v.id === video.id
     );
 
-    let updated: VideoItem[];
-
-    if (idx >= 0) {
-      updated = [...current];
-      updated[idx] = video;
-    } else {
-      updated = [video, ...current];
-    }
+    const updated =
+      idx >= 0
+        ? current.map((v, i) =>
+            i === idx ? video : v
+          )
+        : [video, ...current];
 
     setLocalItem(
       STORAGE_KEYS.VIDEOS,
@@ -957,30 +1026,32 @@ export const db = {
   },
 
   async deleteVideo(id: string): Promise<boolean> {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from('videos')
-          .delete()
-          .eq('id', id);
 
-        if (error) {
-          console.warn(
-            'Supabase video delete error:',
-            error
-          );
-        }
-      } catch (err) {
-        console.warn(
-          'Supabase video delete error:',
-          err
-        );
-      }
+    if (!supabase) {
+      throw new Error(
+        'Supabase is not configured. Video was not deleted.'
+      );
+    }
+
+    const { error } = await supabase
+      .from('videos')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error(
+        'Supabase video delete failed:',
+        error
+      );
+
+      throw new Error(
+        `Video delete failed: ${error.message}`
+      );
     }
 
     const current = getLocalItem<VideoItem[]>(
       STORAGE_KEYS.VIDEOS,
-      INITIAL_VIDEOS
+      []
     );
 
     setLocalItem(
@@ -996,6 +1067,7 @@ export const db = {
   // ==========================================
 
   async getHeroSlides(): Promise<HeroSlide[]> {
+
     if (!supabase) {
       return [];
     }
@@ -1045,6 +1117,7 @@ export const db = {
           s.updated_at ||
           new Date().toISOString()
       }));
+
     } catch (err) {
       console.error(
         'Supabase hero slides fetch error:',
@@ -1134,6 +1207,7 @@ export const db = {
   // ==========================================
 
   async getSettings(): Promise<SiteSettings> {
+
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -1350,7 +1424,6 @@ export const db = {
       );
     }
 
-    // Only update local cache AFTER Supabase succeeds.
     setLocalItem(
       STORAGE_KEYS.SETTINGS,
       settings
@@ -1373,6 +1446,7 @@ export function generateWhatsAppOrderUrl(
   totalAmount: number,
   customerNote?: string
 ): string {
+
   const formattedNumber =
     formatWhatsAppNumberForLink(
       whatsAppNumber
@@ -1422,6 +1496,7 @@ export function generateProductInquiryUrl(
   selectedVariant?: string,
   price?: number
 ): string {
+
   const formattedNumber =
     formatWhatsAppNumberForLink(
       whatsAppNumber
@@ -1435,7 +1510,8 @@ export function generateProductInquiryUrl(
       })`
     : '';
 
-  const message = `Hello D Young Luxury Hairs, I would like to order: ${productName}${details}. Please let me know its availability and delivery options.`;
+  const message =
+    `Hello D Young Luxury Hairs, I would like to order: ${productName}${details}. Please let me know its availability and delivery options.`;
 
   return `https://wa.me/${formattedNumber}?text=${encodeURIComponent(
     message
