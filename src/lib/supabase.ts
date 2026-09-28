@@ -114,7 +114,18 @@ export const db = {
           .select('*, variants:product_variants(*)')
           .order('created_at', { ascending: false });
 
-        if (!error && data && data.length > 0) {
+        if (error) {
+          console.error(
+            'Supabase products fetch failed:',
+            error
+          );
+
+          throw new Error(
+            `Failed to load products: ${error.message}`
+          );
+        }
+
+        if (data) {
           return data.map((p: any) => ({
             id: p.id,
             name: p.name,
@@ -151,8 +162,8 @@ export const db = {
           }));
         }
       } catch (err) {
-        console.warn(
-          'Supabase products fetch failed, using local cache:',
+        console.error(
+          'Supabase products fetch failed:',
           err
         );
       }
@@ -170,9 +181,20 @@ export const db = {
   },
 
   async saveProduct(product: Product): Promise<Product> {
-    if (supabase) {
-      try {
-        const { error } = await supabase.from('products').upsert({
+    if (!supabase) {
+      throw new Error(
+        'Supabase is not configured. Product was not saved.'
+      );
+    }
+
+    try {
+      // ==========================================
+      // 1. SAVE MAIN PRODUCT
+      // ==========================================
+
+      const { error: productError } = await supabase
+        .from('products')
+        .upsert({
           id: product.id,
           name: product.name,
           slug: product.slug,
@@ -196,83 +218,164 @@ export const db = {
           updated_at: new Date().toISOString()
         });
 
-        if (!error && product.variants && product.variants.length > 0) {
-          const variantRows = product.variants.map(v => ({
-            id: v.id,
-            product_id: product.id,
-            length: v.length,
-            color: v.color,
-            price: v.price,
-            sku: v.sku,
-            stock_quantity: v.stockQuantity
-          }));
+      if (productError) {
+        console.error(
+          'Product save failed:',
+          productError
+        );
 
-          await supabase
-            .from('product_variants')
-            .upsert(variantRows);
-        }
-      } catch (err) {
-        console.warn(
-          'Supabase product save failed, falling back to local storage:',
-          err
+        throw new Error(
+          `Product save failed: ${productError.message}`
         );
       }
-    }
 
-    const current = getLocalItem<Product[]>(
-      STORAGE_KEYS.PRODUCTS,
-      INITIAL_PRODUCTS
-    );
+      // ==========================================
+      // 2. REMOVE OLD VARIANTS
+      // ==========================================
 
-    const existingIndex = current.findIndex(
-      p => p.id === product.id
-    );
+      const { error: deleteVariantsError } = await supabase
+        .from('product_variants')
+        .delete()
+        .eq('product_id', product.id);
 
-    let updated: Product[];
+      if (deleteVariantsError) {
+        console.error(
+          'Existing product variants could not be removed:',
+          deleteVariantsError
+        );
 
-    if (existingIndex >= 0) {
-      updated = [...current];
-      updated[existingIndex] = {
+        throw new Error(
+          `Could not update product variants: ${deleteVariantsError.message}`
+        );
+      }
+
+      // ==========================================
+      // 3. SAVE CURRENT VARIANTS
+      // ==========================================
+
+      if (product.variants && product.variants.length > 0) {
+        const variantRows = product.variants.map(v => ({
+          id: v.id,
+          product_id: product.id,
+          length: v.length,
+          color: v.color,
+          price: Number(v.price),
+          sku: v.sku,
+          stock_quantity: Number(v.stockQuantity ?? 0)
+        }));
+
+        const { error: variantsError } = await supabase
+          .from('product_variants')
+          .insert(variantRows);
+
+        if (variantsError) {
+          console.error(
+            'Product variants save failed:',
+            variantsError
+          );
+
+          throw new Error(
+            `Product variants save failed: ${variantsError.message}`
+          );
+        }
+      }
+
+      // ==========================================
+      // 4. UPDATE LOCAL CACHE ONLY AFTER
+      //    SUPABASE SUCCESS
+      // ==========================================
+
+      const current = getLocalItem<Product[]>(
+        STORAGE_KEYS.PRODUCTS,
+        INITIAL_PRODUCTS
+      );
+
+      const existingIndex = current.findIndex(
+        p => p.id === product.id
+      );
+
+      const savedProduct: Product = {
         ...product,
         updatedAt: new Date().toISOString()
       };
-    } else {
-      updated = [product, ...current];
+
+      let updated: Product[];
+
+      if (existingIndex >= 0) {
+        updated = [...current];
+        updated[existingIndex] = savedProduct;
+      } else {
+        updated = [savedProduct, ...current];
+      }
+
+      setLocalItem(
+        STORAGE_KEYS.PRODUCTS,
+        updated
+      );
+
+      return savedProduct;
+
+    } catch (err) {
+      console.error(
+        'Supabase product save failed:',
+        err
+      );
+
+      // Do NOT silently save failed products to localStorage.
+      throw err;
     }
-
-    setLocalItem(STORAGE_KEYS.PRODUCTS, updated);
-
-    return product;
   },
 
   async deleteProduct(id: string): Promise<boolean> {
-    if (supabase) {
-      try {
-        await supabase
-          .from('product_variants')
-          .delete()
-          .eq('product_id', id);
-
-        await supabase
-          .from('products')
-          .delete()
-          .eq('id', id);
-      } catch (err) {
-        console.warn('Supabase product delete error:', err);
-      }
+    if (!supabase) {
+      throw new Error(
+        'Supabase is not configured. Product was not deleted.'
+      );
     }
 
-    const current = getLocalItem<Product[]>(
-      STORAGE_KEYS.PRODUCTS,
-      INITIAL_PRODUCTS
-    );
+    try {
+      const { error: variantsError } = await supabase
+        .from('product_variants')
+        .delete()
+        .eq('product_id', id);
 
-    setLocalItem(
-      STORAGE_KEYS.PRODUCTS,
-      current.filter(p => p.id !== id)
-    );
+      if (variantsError) {
+        throw new Error(
+          `Could not delete product variants: ${variantsError.message}`
+        );
+      }
 
-    return true;
+      const { error: productError } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
+
+      if (productError) {
+        throw new Error(
+          `Could not delete product: ${productError.message}`
+        );
+      }
+
+      const current = getLocalItem<Product[]>(
+        STORAGE_KEYS.PRODUCTS,
+        INITIAL_PRODUCTS
+      );
+
+      setLocalItem(
+        STORAGE_KEYS.PRODUCTS,
+        current.filter(p => p.id !== id)
+      );
+
+      return true;
+
+    } catch (err) {
+      console.error(
+        'Supabase product delete error:',
+        err
+      );
+
+      throw err;
+    }
   },
 
   // ==========================================
@@ -286,6 +389,13 @@ export const db = {
           .from('product_categories')
           .select('*')
           .order('display_order', { ascending: true });
+
+        if (error) {
+          console.error(
+            'Supabase categories fetch error:',
+            error
+          );
+        }
 
         if (!error && data && data.length > 0) {
           return data.map((c: any) => ({
@@ -316,14 +426,23 @@ export const db = {
   ): Promise<ProductCategory> {
     if (supabase) {
       try {
-        await supabase.from('product_categories').upsert({
-          id: cat.id,
-          name: cat.name,
-          slug: cat.slug,
-          description: cat.description,
-          image: cat.image,
-          display_order: cat.displayOrder
-        });
+        const { error } = await supabase
+          .from('product_categories')
+          .upsert({
+            id: cat.id,
+            name: cat.name,
+            slug: cat.slug,
+            description: cat.description,
+            image: cat.image,
+            display_order: cat.displayOrder
+          });
+
+        if (error) {
+          console.error(
+            'Supabase category save error:',
+            error
+          );
+        }
       } catch (err) {
         console.warn(
           'Supabase category save error:',
@@ -356,10 +475,17 @@ export const db = {
   async deleteCategory(id: string): Promise<boolean> {
     if (supabase) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('product_categories')
           .delete()
           .eq('id', id);
+
+        if (error) {
+          console.error(
+            'Supabase category delete error:',
+            error
+          );
+        }
       } catch (err) {
         console.warn(
           'Supabase category delete error:',
@@ -418,6 +544,13 @@ export const db = {
               : []
           }));
         }
+
+        if (error) {
+          console.warn(
+            'Supabase orders fetch error:',
+            error
+          );
+        }
       } catch (err) {
         console.warn(
           'Supabase orders fetch error:',
@@ -463,6 +596,13 @@ export const db = {
             updated_at: newOrder.updatedAt
           });
 
+        if (error) {
+          console.warn(
+            'Supabase order creation error:',
+            error
+          );
+        }
+
         if (!error && newOrder.items.length > 0) {
           const itemRows = newOrder.items.map(item => ({
             order_id: newOrder.id,
@@ -475,9 +615,16 @@ export const db = {
             subtotal: item.subtotal
           }));
 
-          await supabase
+          const { error: itemsError } = await supabase
             .from('order_items')
             .insert(itemRows);
+
+          if (itemsError) {
+            console.warn(
+              'Supabase order items creation error:',
+              itemsError
+            );
+          }
         }
       } catch (err) {
         console.warn(
@@ -506,13 +653,20 @@ export const db = {
   ): Promise<boolean> {
     if (supabase) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('orders')
           .update({
             status,
             updated_at: new Date().toISOString()
           })
           .eq('id', orderId);
+
+        if (error) {
+          console.warn(
+            'Supabase status update error:',
+            error
+          );
+        }
       } catch (err) {
         console.warn(
           'Supabase status update error:',
@@ -573,6 +727,13 @@ export const db = {
             seoDescription: b.seo_description
           }));
         }
+
+        if (error) {
+          console.warn(
+            'Supabase blog fetch error:',
+            error
+          );
+        }
       } catch (err) {
         console.warn(
           'Supabase blog fetch error:',
@@ -592,24 +753,33 @@ export const db = {
   ): Promise<BlogPost> {
     if (supabase) {
       try {
-        await supabase.from('blog_posts').upsert({
-          id: post.id,
-          title: post.title,
-          slug: post.slug,
-          category_id: post.categoryId,
-          category_name: post.categoryName,
-          excerpt: post.excerpt,
-          content: post.content,
-          featured_image: post.featuredImage,
-          author: post.author,
-          read_time: post.readTime,
-          recommended_product_id:
-            post.recommendedProductId,
-          is_published: post.isPublished,
-          published_at: post.publishedAt,
-          seo_title: post.seoTitle,
-          seo_description: post.seoDescription
-        });
+        const { error } = await supabase
+          .from('blog_posts')
+          .upsert({
+            id: post.id,
+            title: post.title,
+            slug: post.slug,
+            category_id: post.categoryId,
+            category_name: post.categoryName,
+            excerpt: post.excerpt,
+            content: post.content,
+            featured_image: post.featuredImage,
+            author: post.author,
+            read_time: post.readTime,
+            recommended_product_id:
+              post.recommendedProductId,
+            is_published: post.isPublished,
+            published_at: post.publishedAt,
+            seo_title: post.seoTitle,
+            seo_description: post.seoDescription
+          });
+
+        if (error) {
+          console.warn(
+            'Supabase blog post save error:',
+            error
+          );
+        }
       } catch (err) {
         console.warn(
           'Supabase blog post save error:',
@@ -649,10 +819,17 @@ export const db = {
   ): Promise<boolean> {
     if (supabase) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('blog_posts')
           .delete()
           .eq('id', id);
+
+        if (error) {
+          console.warn(
+            'Supabase blog post delete error:',
+            error
+          );
+        }
       } catch (err) {
         console.warn(
           'Supabase blog post delete error:',
@@ -699,6 +876,13 @@ export const db = {
             createdAt: v.created_at
           }));
         }
+
+        if (error) {
+          console.warn(
+            'Supabase videos fetch error:',
+            error
+          );
+        }
       } catch (err) {
         console.warn(
           'Supabase videos fetch error:',
@@ -718,17 +902,26 @@ export const db = {
   ): Promise<VideoItem> {
     if (supabase) {
       try {
-        await supabase.from('videos').upsert({
-          id: video.id,
-          title: video.title,
-          description: video.description,
-          video_url: video.videoUrl,
-          thumbnail_url: video.thumbnailUrl,
-          category: video.category,
-          duration: video.duration,
-          is_published: video.isPublished,
-          created_at: video.createdAt
-        });
+        const { error } = await supabase
+          .from('videos')
+          .upsert({
+            id: video.id,
+            title: video.title,
+            description: video.description,
+            video_url: video.videoUrl,
+            thumbnail_url: video.thumbnailUrl,
+            category: video.category,
+            duration: video.duration,
+            is_published: video.isPublished,
+            created_at: video.createdAt
+          });
+
+        if (error) {
+          console.warn(
+            'Supabase video save error:',
+            error
+          );
+        }
       } catch (err) {
         console.warn(
           'Supabase video save error:',
@@ -766,10 +959,17 @@ export const db = {
   async deleteVideo(id: string): Promise<boolean> {
     if (supabase) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('videos')
           .delete()
           .eq('id', id);
+
+        if (error) {
+          console.warn(
+            'Supabase video delete error:',
+            error
+          );
+        }
       } catch (err) {
         console.warn(
           'Supabase video delete error:',
@@ -897,11 +1097,6 @@ export const db = {
       );
     }
 
-    // Hero slides are stored only in Supabase.
-    // Images are stored in Supabase Storage and
-    // only their URLs are saved in hero_slides.
-    // Nothing is written to localStorage here.
-
     return updatedSlide;
   },
 
@@ -931,7 +1126,6 @@ export const db = {
       );
     }
 
-    // Nothing is written to localStorage.
     return true;
   },
 
