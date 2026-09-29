@@ -82,7 +82,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                 Eze Stephen Chidubem
               </h3>
               <p className="text-xs text-[#8C6A48] font-medium">
-                Founder · D Young Luxury Hairs (Contact is same as the brand's: 08107123342)
+                Founder · D Young Luxury Hairs (Contact is same as the brand's: {settings.phoneNumber || settings.whatsAppNumber || 'Available in Admin Settings'})
               </p>
             </div>
 
@@ -112,12 +112,12 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         
-        {/* Left: Contact Details & Awka Locations */}
+        {/* Left: Contact Details & Store Locations */}
         <div className="lg:col-span-5 bg-white border border-[#EAE2D7] p-8 space-y-6 shadow-sm">
           <div className="space-y-1 border-b border-[#F4EFEA] pb-4">
             <h2 className="font-serif text-2xl text-[#291C16]">Store Locations & Details</h2>
             <p className="text-xs text-[#8C6A48]">
-              Awka, Anambra State, Nigeria
+              {settings.city || 'Location available in Admin Settings'}
             </p>
           </div>
 
@@ -129,7 +129,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                 Head Office
               </span>
               <p className="font-light leading-relaxed">
-                No. 14 Bida Road, Linco Plaza, First Floor, Along Mosque, Awka, Anambra State, Nigeria
+                {settings.headOffice || 'Address available in Admin Settings'}
               </p>
             </div>
 
@@ -139,7 +139,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                 Branch
               </span>
               <p className="font-light leading-relaxed">
-                No. 5 Kano Street, Mighty Plaza, Beside Mosque, Upstairs, Awka, Anambra State, Nigeria
+                {settings.branch1 || 'Address available in Admin Settings'}
               </p>
             </div>
 
@@ -149,7 +149,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                 Branch Office
               </span>
               <p className="font-light leading-relaxed">
-                No. 3 Kano Street, St Edwin Plaza, Drawn Flow Shop, No. GS16, Awka, Anambra State, Nigeria
+                {settings.branch2 || 'Address available in Admin Settings'}
               </p>
             </div>
 
@@ -160,7 +160,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                 <span className="font-semibold text-[#291C16] uppercase tracking-wider block">
                   Phone / WhatsApp
                 </span>
-                <p className="font-light">08107123342</p>
+                <p className="font-light">{settings.phoneNumber || settings.whatsAppNumber || 'Available in Admin Settings'}</p>
                 <a
                   href={directWhatsAppUrl}
                   target="_blank"
