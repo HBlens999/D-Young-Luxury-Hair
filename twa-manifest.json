@@ -1,0 +1,13 @@
+{
+  "packageId": "com.dyoungluxuryhairs.app",
+  "host": "d-young-luxury-hair.premiumhairs.workers.dev",
+  "name": "D YOUNG LUXURY HAIRS",
+  "launcherName": "D Young Hairs",
+  "display": "standalone",
+  "startUrl": "/",
+  "themeColor": "#241F1C",
+  "navigationColor": "#FBF9F5",
+  "navigationDividerColor": "#E5D7C5",
+  "backgroundColor": "#FBF9F5",
+  "enableNotifications": false
+}
