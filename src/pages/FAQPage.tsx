@@ -37,7 +37,7 @@ export const FAQPage: React.FC<FAQPageProps> = () => {
     },
     {
       q: 'What are your delivery timelines and store hours?',
-      a: 'We are open every day. Local pickup and delivery are available from our store locations in {settings.city || 'the configured store area'}. Nationwide delivery across Nigeria takes 24 to 48 hours via express courier. Real-time waybill tracking is sent directly to your WhatsApp.'
+      a: `We are open every day. Local pickup and delivery are available from our store locations in ${settings.city || 'the configured store area'}. Nationwide delivery across Nigeria takes 24 to 48 hours via express courier. Real-time waybill tracking is sent directly to your WhatsApp.`
     }
   ];
 
