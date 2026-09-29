@@ -103,10 +103,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             <MapPin className="w-6 h-6 text-[#C5A059] shrink-0" />
             <div>
               <span className="text-[11px] uppercase tracking-wider text-[#C5A059] font-semibold block">
-                Awka Presence
+                Store Location
               </span>
               <p className="text-xs text-[#EBE3D8] font-light truncate">
-                Linco Plaza & Kano St Branches
+                {settings.city || 'See store locations in Admin Settings'}
               </p>
             </div>
           </div>
@@ -221,7 +221,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               className="text-xs uppercase tracking-[0.14em] text-[#25D366] font-semibold flex items-center gap-1.5 hover:underline"
             >
               <MessageCircle className="w-3.5 h-3.5 fill-[#25D366]" />
-              <span>WhatsApp: 08107123342</span>
+              <span>WhatsApp: {settings.whatsAppNumber || 'Available in Admin Settings'}</span>
             </a>
             <button
               onClick={() => onNavigate('/shop')}
@@ -335,7 +335,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                   <strong>Eze Stephen Chidubem</strong> is the owner and founder of <strong>D Young Luxury Hairs</strong>, who is passionate about making those around him look good as he would always say, <em>“Luxury hair or nothing.”</em>
                 </p>
                 <p>
-                  Under Stephen's direct guidance, D Young Luxury Hairs has grown from a boutique hair specialist in Awka, Anambra State into a nationally renowned destination for pure Vietnamese bone straight, Super Double Drawn bundles, bouncy curls, and custom hand-finished closures.
+                  Under Stephen's direct guidance, D Young Luxury Hairs has grown from a boutique hair specialist into a destination for pure Vietnamese bone straight, Super Double Drawn bundles, bouncy curls, and custom hand-finished closures.
                 </p>
               </div>
 
@@ -414,7 +414,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 Open Every Day Across Nigeria
               </h3>
               <p className="text-xs text-[#6B5344] font-light leading-relaxed">
-                Fast, secure delivery to all 36 Nigerian states. Head office at Linco Plaza and branches on Kano Street, Awka open every day for consultations and pickup.
+                Fast, secure delivery to customers across Nigeria. Local pickup information is available from our store locations in {settings.city || 'your area'}.
               </p>
             </div>
           </div>
@@ -573,12 +573,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         </section>
       )}
 
-      {/* 9. Awka Store Locations & Delivery Info */}
+      {/* 9. Store Locations & Delivery Info */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-[#FAF7F2] border border-[#EAE2D7] p-8 sm:p-12 space-y-8">
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <span className="text-xs uppercase tracking-[0.25em] text-[#8C6A48] font-semibold block">
-              Official Presence in Awka, Anambra State
+              Official Store Locations
             </span>
             <h3 className="font-serif text-2xl sm:text-3xl text-[#291C16]">
               Visit Our Head Office & Branches
@@ -594,7 +594,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 Head Office
               </span>
               <p className="text-xs text-[#291C16] leading-relaxed">
-                No. 14 Bida Road, Linco Plaza, First Floor, Along Mosque, Awka, Anambra State, Nigeria
+                {settings.headOffice || 'Head office address available in Admin Settings'}
               </p>
             </div>
 
@@ -603,7 +603,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 Branch
               </span>
               <p className="text-xs text-[#291C16] leading-relaxed">
-                No. 5 Kano Street, Mighty Plaza, Beside Mosque, Upstairs, Awka, Anambra State, Nigeria
+                {settings.branch1 || 'Branch address available in Admin Settings'}
               </p>
             </div>
 
@@ -612,7 +612,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 Branch Office
               </span>
               <p className="text-xs text-[#291C16] leading-relaxed">
-                No. 3 Kano Street, St Edwin Plaza, Drawn Flow Shop, No. GS16, Awka, Anambra State, Nigeria
+                {settings.branch2 || 'Branch office address available in Admin Settings'}
               </p>
             </div>
           </div>

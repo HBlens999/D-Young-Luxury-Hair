@@ -676,7 +676,7 @@ export const AdminSettings: React.FC = () => {
 
             <div>
               <label className="block uppercase tracking-wider font-semibold text-[#8C6A48] mb-1.5">
-                Head Office (Awka)
+                Head Office
               </label>
 
               <input
@@ -694,7 +694,7 @@ export const AdminSettings: React.FC = () => {
 
             <div>
               <label className="block uppercase tracking-wider font-semibold text-[#8C6A48] mb-1.5">
-                Branch (Kano Street, Awka)
+                Branch
               </label>
 
               <input
@@ -712,7 +712,7 @@ export const AdminSettings: React.FC = () => {
 
             <div>
               <label className="block uppercase tracking-wider font-semibold text-[#8C6A48] mb-1.5">
-                Branch Office (St Edwin Plaza, Awka)
+                Branch Office
               </label>
 
               <input

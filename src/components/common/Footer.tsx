@@ -178,10 +178,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             </ul>
           </div>
 
-          {/* Col 5: Official Locations in Awka */}
+          {/* Col 5: Store Locations */}
           <div className="space-y-4">
             <h4 className="text-xs uppercase tracking-[0.16em] text-[#FDFCF7] font-semibold">
-              Awka Store Locations
+              Store Locations
             </h4>
             <div className="space-y-3.5 text-xs text-[#D6C2A7]/80 font-light">
               <div className="space-y-1 border-l-2 border-[#B89865] pl-2.5">
@@ -189,7 +189,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   Head Office
                 </span>
                 <p className="leading-snug">
-                  No. 14 Bida Road, Linco Plaza, First Floor, Along Mosque, Awka, Anambra State
+                  {settings.headOffice || 'Head office address available in Admin Settings'}
                 </p>
               </div>
 
@@ -198,7 +198,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   Branch
                 </span>
                 <p className="leading-snug">
-                  No. 5 Kano Street, Mighty Plaza, Beside Mosque, Upstairs, Awka, Anambra State
+                  {settings.branch1 || 'Branch address available in Admin Settings'}
                 </p>
               </div>
 
@@ -207,13 +207,13 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   Branch Office
                 </span>
                 <p className="leading-snug">
-                  No. 3 Kano Street, St Edwin Plaza, Drawn Flow Shop, No. GS16, Awka, Anambra State
+                  {settings.branch2 || 'Branch office address available in Admin Settings'}
                 </p>
               </div>
 
               <div className="flex items-center gap-2 pt-1 text-[#FDFCF7]">
                 <Phone className="w-3.5 h-3.5 text-[#B89865] shrink-0" />
-                <span>Phone / WhatsApp: 08107123342</span>
+                <span>Phone / WhatsApp: {settings.phoneNumber || settings.whatsAppNumber || 'Available in Admin Settings'}</span>
               </div>
             </div>
           </div>

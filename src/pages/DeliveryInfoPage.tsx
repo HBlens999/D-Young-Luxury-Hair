@@ -29,19 +29,19 @@ export const DeliveryInfoPage: React.FC<DeliveryInfoPageProps> = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
-        {/* Awka & Anambra Local Delivery / Pickup */}
+        {/* Local Delivery / Pickup */}
         <div className="bg-white border border-[#EAE2D7] p-8 space-y-4">
           <div className="flex items-center gap-3">
             <MapPin className="w-5 h-5 text-[#8C6A48]" />
-            <h2 className="font-serif text-xl font-semibold text-[#291C16]">Awka & Anambra Hubs</h2>
+            <h2 className="font-serif text-xl font-semibold text-[#291C16]">Local Pickup & Delivery</h2>
           </div>
           <p className="text-xs text-[#6B5344] font-light leading-relaxed">
-            Same-day pickup and rapid local delivery from our Awka Head Office and Kano Street branches.
+            Same-day pickup and rapid local delivery are available from our store locations in {settings.city || 'the configured store area'}.
           </p>
           <ul className="text-xs text-[#4A3326] space-y-1.5 pt-2 list-disc list-inside">
-            <li>Head Office: Linco Plaza, First Floor, Along Mosque, Bida Road</li>
-            <li>Branch: Mighty Plaza, Beside Mosque, Upstairs, Kano Street</li>
-            <li>Branch Office: St Edwin Plaza, Drawn Flow Shop, No. GS16, Kano Street</li>
+            <li>Head Office: {settings.headOffice || 'Address available in Admin Settings'}</li>
+            <li>Branch: {settings.branch1 || 'Address available in Admin Settings'}</li>
+            <li>Branch Office: {settings.branch2 || 'Address available in Admin Settings'}</li>
             <li>Business hours: Open every day</li>
           </ul>
         </div>
@@ -75,7 +75,7 @@ export const DeliveryInfoPage: React.FC<DeliveryInfoPageProps> = () => {
           <ul className="text-xs text-[#4A3326] space-y-1.5 pt-2 list-disc list-inside">
             <li>Monday – Sunday: Open Every Day</li>
             <li>Direct WhatsApp inquiries attended to promptly</li>
-            <li>Dedicated hotline: 08107123342</li>
+            <li>Dedicated hotline: {settings.phoneNumber || settings.whatsAppNumber || 'Available in Admin Settings'}</li>
           </ul>
         </div>
 
