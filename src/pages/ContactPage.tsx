@@ -278,7 +278,7 @@ export const ContactPage: React.FC<ContactPageProps> = () => {
                   <option value="Consultation with Eze Stephen Chidubem">Consultation with Eze Stephen Chidubem (Founder)</option>
                   <option value="Bone Straight Hair Inquiry">Bone Straight Hair Inquiry</option>
                   <option value="Bouncy / Pixel Curls Inquiry">Bouncy / Pixel Curls Inquiry</option>
-                  <option value="Awka Store Visit">Awka Store Visit</option>
+                  <option value="Store Visit">Store Visit</option>
                 </select>
               </div>
             </div>
