@@ -43,6 +43,13 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Verify bundled website
+        run: |
+          test -f dist/index.html
+          test -f dist/manifest.webmanifest
+          echo "Bundled website verified:"
+          grep -o '<title>[^<]*</title>' dist/index.html || true
+
       - name: Build APK
         working-directory: android
         run: |
