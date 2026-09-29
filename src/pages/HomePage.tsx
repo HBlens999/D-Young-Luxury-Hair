@@ -573,12 +573,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         </section>
       )}
 
-      {/* 9. Awka Store Locations & Delivery Info */}
+      {/* 9. Store Locations & Delivery Info */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-[#FAF7F2] border border-[#EAE2D7] p-8 sm:p-12 space-y-8">
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <span className="text-xs uppercase tracking-[0.25em] text-[#8C6A48] font-semibold block">
-              Official Presence in Awka, Anambra State
+              Official Store Locations
             </span>
             <h3 className="font-serif text-2xl sm:text-3xl text-[#291C16]">
               Visit Our Head Office & Branches
@@ -594,7 +594,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 Head Office
               </span>
               <p className="text-xs text-[#291C16] leading-relaxed">
-                No. 14 Bida Road, Linco Plaza, First Floor, Along Mosque, Awka, Anambra State, Nigeria
+                {settings.headOffice || 'Head office address available in Admin Settings'}
               </p>
             </div>
 
