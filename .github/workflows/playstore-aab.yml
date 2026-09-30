@@ -22,11 +22,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: Setup Java 21
+      - name: Setup Java 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
 
       - name: Install Android API 36
         shell: bash
@@ -77,7 +77,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
 
           # Install the Android components needed by the TWA build.
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          sdkmanager "platforms;android-36" "build-tools;36.1.0"
 
           # Re-run license acceptance after component installation so the SDK state
           # is persisted before Bubblewrap starts its own sdkmanager calls.
@@ -85,6 +85,30 @@ jobs:
 
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
+
+      - name: Configure Bubblewrap to use preinstalled Android SDK and JDK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Bubblewrap otherwise creates its own SDK under ~/.bubblewrap and
+          # downloads another command-line-tools archive during `init`.
+          # Point it explicitly at the SDK and JDK already prepared above.
+          mkdir -p "$ANDROID_SDK_ROOT/bin" "$HOME/.bubblewrap"
+          ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "$ANDROID_SDK_ROOT/bin/sdkmanager"
+
+          printf '%s\n' \
+            '{' \
+            '  "jdkPath": "'"$JAVA_HOME"'",' \
+            '  "androidSdkPath": "'"$ANDROID_SDK_ROOT"'"' \
+            '}' > "$HOME/.bubblewrap/config.json"
+
+          echo "Bubblewrap configuration:"
+          cat "$HOME/.bubblewrap/config.json"
+          echo "SDK manager:"
+          "$ANDROID_SDK_ROOT/bin/sdkmanager" --version
+          echo "JDK:"
+          "$JAVA_HOME/bin/java" -version
 
       - name: Prepare signing key
         id: key
