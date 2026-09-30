@@ -110,7 +110,7 @@ jobs:
           echo "JDK:"
           "$JAVA_HOME/bin/java" -version
 
-      - name: Prepare signing key
+      - name: Prepare signing key for Bubblewrap init
         id: key
         shell: bash
         run: |
@@ -121,8 +121,11 @@ jobs:
           echo "store_password=$STORE_PASS" >> "$GITHUB_OUTPUT"
           echo "key_password=$KEY_PASS" >> "$GITHUB_OUTPUT"
 
+          # Bubblewrap init uses the default signing-key path
+          # "twa-build/android-keystore". Create it BEFORE init so init
+          # does not stop for its interactive keystore-password prompts.
           keytool -genkeypair -v \
-            -keystore twa-build/android.keystore \
+            -keystore twa-build/android-keystore \
             -alias android \
             -keyalg RSA \
             -keysize 2048 \
@@ -133,8 +136,12 @@ jobs:
 
       - name: Initialize TWA project from live PWA
         shell: bash
+        timeout-minutes: 5
         run: |
           set -euo pipefail
+          # Bubblewrap init is interactive. Empty answers accept the manifest
+          # defaults, while the pre-created default keystore prevents the
+          # init command from entering the password-creation prompts.
           yes "" | bubblewrap init \
             --manifest="https://d-young-luxury-hair.premiumhairs.workers.dev/manifest.webmanifest" \
             --directory="twa-build"
@@ -164,7 +171,7 @@ jobs:
           m.appVersion = '1.0';
           m.minSdkVersion = 23;
           m.signingKey = {
-            path: './android.keystore',
+            path: './android-keystore',
             alias: 'android'
           };
 
@@ -209,7 +216,7 @@ jobs:
           $FINGERPRINT
 
           Keystore file:
-          android.keystore
+          android-keystore
 
           Keystore password:
           $STORE_PASS
@@ -249,7 +256,7 @@ jobs:
         run: |
           test -f app-release-bundle.aab
           test -f app-release-signed.apk
-          test -f android.keystore
+          test -f android-keystore
           test -f PLAYSTORE-UPLOAD-KEY-INFO.txt
           test -f assetlinks-upload-key.json
           echo "AAB:"
