@@ -1,0 +1,195 @@
+name: Build Play Store TWA AAB
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-playstore-aab:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Android API 36
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Prepare signing key
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p twa-build
+          STORE_PASS="$(openssl rand -hex 24)"
+          KEY_PASS="$(openssl rand -hex 24)"
+          echo "store_password=$STORE_PASS" >> "$GITHUB_OUTPUT"
+          echo "key_password=$KEY_PASS" >> "$GITHUB_OUTPUT"
+
+          keytool -genkeypair -v \
+            -keystore twa-build/android.keystore \
+            -alias android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "$STORE_PASS" \
+            -keypass "$KEY_PASS" \
+            -dname "CN=D YOUNG LUXURY HAIRS, OU=Mobile, O=D YOUNG LUXURY HAIRS, L=Onitsha, ST=Anambra, C=NG"
+
+      - name: Initialize TWA project from live PWA
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes "" | bubblewrap init \
+            --manifest="https://d-young-luxury-hair.premiumhairs.workers.dev/manifest.webmanifest" \
+            --directory="twa-build"
+
+      - name: Set Play Store TWA configuration
+        working-directory: twa-build
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const p = 'twa-manifest.json';
+          const m = JSON.parse(fs.readFileSync(p, 'utf8'));
+
+          m.packageId = 'com.dyoungluxuryhairs.app';
+          m.host = 'd-young-luxury-hair.premiumhairs.workers.dev';
+          m.name = 'D YOUNG LUXURY HAIRS';
+          m.launcherName = 'D Young Hairs';
+          m.startUrl = '/';
+          m.display = 'standalone';
+          m.orientation = 'portrait-primary';
+          m.themeColor = '#241F1C';
+          m.navigationColor = '#FBF9F5';
+          m.navigationDividerColor = '#E5D7C5';
+          m.backgroundColor = '#FBF9F5';
+          m.enableNotifications = false;
+          m.enableSiteSettingsShortcut = false;
+          m.appVersionCode = 1;
+          m.appVersion = '1.0';
+          m.minSdkVersion = 23;
+          m.signingKey = {
+            path: './android.keystore',
+            alias: 'android'
+          };
+
+          fs.writeFileSync(p, JSON.stringify(m, null, 2) + '\n');
+          NODE
+
+      - name: Regenerate TWA Android project
+        working-directory: twa-build
+        run: bubblewrap update --skipVersionUpgrade
+
+      - name: Force Android 16 / API 36 target
+        working-directory: twa-build
+        run: |
+          set -euo pipefail
+          sed -i -E 's/compileSdk(Version)?[[:space:]]+[0-9]+/compileSdk 36/g' app/build.gradle
+          sed -i -E 's/targetSdkVersion[[:space:]]+[0-9]+/targetSdkVersion 36/g' app/build.gradle
+          echo "Generated Android configuration:"
+          grep -E 'compileSdk|targetSdkVersion|minSdkVersion|applicationId' app/build.gradle
+
+      - name: Build signed AAB and APK
+        working-directory: twa-build
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ steps.key.outputs.store_password }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ steps.key.outputs.key_password }}
+        run: |
+          bubblewrap build --skipPwaValidation
+
+      - name: Generate signing and asset-link information
+        working-directory: twa-build
+        env:
+          STORE_PASS: ${{ steps.key.outputs.store_password }}
+        run: |
+          set -euo pipefail
+          FINGERPRINT="$(keytool -list -v -keystore android.keystore -storepass "$STORE_PASS" -alias android | awk -F': ' '/SHA256:/{print $2; exit}')"
+          cat > PLAYSTORE-UPLOAD-KEY-INFO.txt <<EOF
+          D YOUNG LUXURY HAIRS - PLAY STORE UPLOAD KEY
+
+          Package ID:
+          com.dyoungluxuryhairs.app
+
+          Upload-key SHA-256:
+          $FINGERPRINT
+
+          Keystore file:
+          android.keystore
+
+          Keystore password:
+          $STORE_PASS
+
+          Key alias:
+          android
+
+          Key password:
+          ${{ steps.key.outputs.key_password }}
+
+          IMPORTANT:
+          Keep android.keystore and this file private and backed up.
+          The SHA-256 above is the LOCAL/UPLOAD key fingerprint.
+          After enabling Google Play App Signing, the Play Console will provide
+          the APP SIGNING key fingerprint. That Play signing fingerprint must
+          be placed in the website's .well-known/assetlinks.json for the
+          Play-distributed app to open as a fully trusted TWA.
+          EOF
+
+          cat > assetlinks-upload-key.json <<EOF
+          [
+            {
+              "relation": ["delegate_permission/common.handle_all_urls"],
+              "target": {
+                "namespace": "android_app",
+                "package_name": "com.dyoungluxuryhairs.app",
+                "sha256_cert_fingerprints": [
+                  "$FINGERPRINT"
+                ]
+              }
+            }
+          ]
+          EOF
+
+      - name: Verify Play Store artifacts
+        working-directory: twa-build
+        run: |
+          test -f app-release-bundle.aab
+          test -f app-release-signed.apk
+          test -f android.keystore
+          test -f PLAYSTORE-UPLOAD-KEY-INFO.txt
+          test -f assetlinks-upload-key.json
+          echo "AAB:"
+          ls -lh app-release-bundle.aab
+          echo "Signed APK:"
+          ls -lh app-release-signed.apk
+          echo "Package:"
+          grep -m1 '"packageId"' twa-manifest.json
+
+      - name: Upload Play Store bundle and signing backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: D-Young-Luxury-Hairs-PlayStore-AAB
+          path: |
+            twa-build/app-release-bundle.aab
+            twa-build/app-release-signed.apk
+            twa-build/android.keystore
+            twa-build/PLAYSTORE-UPLOAD-KEY-INFO.txt
+            twa-build/assetlinks-upload-key.json
+          retention-days: 90
