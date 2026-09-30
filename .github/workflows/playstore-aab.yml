@@ -71,7 +71,17 @@ jobs:
             '84831b9409646a918e30573bab4c9c91346d8abd' \
             > "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license"
 
+          # Explicitly run sdkmanager's license flow as Bubblewrap invokes sdkmanager
+          # again during `bubblewrap init`. The `yes` process can receive SIGPIPE
+          # after sdkmanager finishes, so do not let pipefail abort the workflow.
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+
+          # Install the Android components needed by the TWA build.
           sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+          # Re-run license acceptance after component installation so the SDK state
+          # is persisted before Bubblewrap starts its own sdkmanager calls.
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
 
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
