@@ -157,7 +157,7 @@ jobs:
           m.packageId = 'com.dyoungluxuryhairs.app';
           m.host = 'd-young-luxury-hair.premiumhairs.workers.dev';
           m.name = 'D YOUNG LUXURY HAIRS';
-          m.launcherName = 'D Young Hairs';
+          m.launcherName = 'D Young';
           m.startUrl = '/';
           m.display = 'standalone';
           m.orientation = 'portrait-primary';
