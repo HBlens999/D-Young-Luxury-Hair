@@ -2,6 +2,9 @@ name: Build Play Store TWA AAB
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/playstore-aab.yml'
 
 permissions:
   contents: read
