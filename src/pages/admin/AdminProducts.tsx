@@ -28,12 +28,16 @@ export const AdminProducts: React.FC = () => {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [prods, cats] = await Promise.all([
+      const [prods, cats] = await Promise.allSettled([
         db.getProducts(),
         db.getCategories()
       ]);
-      setProducts(prods);
-      setCategories(cats);
+
+      if (prods.status === 'fulfilled') setProducts(prods.value);
+      else console.error('Admin products failed:', prods.reason);
+
+      if (cats.status === 'fulfilled') setCategories(cats.value);
+      else console.error('Admin categories failed:', cats.reason);
     } catch (err) {
       console.error('Failed to load products in admin:', err);
     } finally {
