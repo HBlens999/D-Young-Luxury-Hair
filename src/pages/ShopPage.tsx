@@ -28,22 +28,39 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate, initialCategoryS
   }, [initialCategorySlug]);
 
   useEffect(() => {
+    let active = true;
+
     async function loadShopData() {
-      try {
-        setIsLoading(true);
-        const [prods, cats] = await Promise.all([
-          db.getProducts(),
-          db.getCategories()
-        ]);
-        setProducts(prods);
-        setCategories(cats);
-      } catch (err) {
-        console.error('Failed to load shop products:', err);
-      } finally {
+      const [cachedProducts, cachedCategories] = [
+        db.getCachedProducts(),
+        db.getCachedCategories()
+      ];
+
+      if (cachedProducts.length && active) setProducts(cachedProducts);
+      if (cachedCategories.length && active) setCategories(cachedCategories);
+      if ((cachedProducts.length || cachedCategories.length) && active) {
         setIsLoading(false);
+      } else if (active) {
+        setIsLoading(true);
       }
+
+      const refreshes = [
+        db.getProducts().then(data => active && setProducts(data)),
+        db.getCategories().then(data => active && setCategories(data))
+      ];
+
+      await Promise.allSettled(refreshes);
+      if (active) setIsLoading(false);
     }
-    loadShopData();
+
+    loadShopData().catch(err => {
+      console.error('Failed to load shop products:', err);
+      if (active) setIsLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Filtered and sorted products
