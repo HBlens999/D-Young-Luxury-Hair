@@ -12,17 +12,30 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({ onNavigate }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     async function load() {
+      const cached = db.getCachedCategories();
+
+      if (cached.length && active) {
+        setCategories(cached);
+        setIsLoading(false);
+      }
+
       try {
         const cats = await db.getCategories();
-        setCategories(cats);
+        if (active) setCategories(cats);
       } catch (err) {
         console.error('Failed to load categories:', err);
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     }
+
     load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
