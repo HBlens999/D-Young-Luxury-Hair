@@ -96,11 +96,31 @@ function setLocalItem<T>(key: string, value: T): void {
   }
 }
 
+function getCachedArray<T>(key: string): T[] {
+  return getLocalItem<T[]>(key, []);
+}
+
 // ==========================================
 // DATA API
 // ==========================================
 
 export const db = {
+
+  getCachedProducts(): Product[] {
+    return getCachedArray<Product>(STORAGE_KEYS.PRODUCTS);
+  },
+
+  getCachedCategories(): ProductCategory[] {
+    return getCachedArray<ProductCategory>(STORAGE_KEYS.CATEGORIES);
+  },
+
+  getCachedBlogPosts(): BlogPost[] {
+    return getCachedArray<BlogPost>(STORAGE_KEYS.BLOG_POSTS);
+  },
+
+  getCachedVideos(): VideoItem[] {
+    return getCachedArray<VideoItem>(STORAGE_KEYS.VIDEOS);
+  },
 
   // ==========================================
   // PRODUCTS
@@ -126,7 +146,7 @@ export const db = {
         }
 
         if (data) {
-          return data.map((p: any) => ({
+          const products = data.map((p: any) => ({
             id: p.id,
             name: p.name,
             slug: p.slug,
@@ -160,6 +180,11 @@ export const db = {
             createdAt: p.created_at,
             updatedAt: p.updated_at
           }));
+
+          // Persist the last successful catalog response so repeat visits can
+          // render immediately while Supabase refreshes in the background.
+          setLocalItem(STORAGE_KEYS.PRODUCTS, products);
+          return products;
         }
 
         return [];
@@ -180,7 +205,90 @@ export const db = {
   },
 
   async getProductBySlug(slug: string): Promise<Product | null> {
-    const products = await this.getProducts();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select(`
+            id,
+            name,
+            slug,
+            category_id,
+            category_name,
+            product_type,
+            short_description,
+            description,
+            main_image,
+            additional_images,
+            min_price,
+            max_price,
+            texture,
+            density,
+            cap_size,
+            origin,
+            availability,
+            is_featured,
+            is_new_arrival,
+            is_published,
+            created_at,
+            updated_at,
+            variants:product_variants(
+              id,
+              length,
+              color,
+              price,
+              sku,
+              stock_quantity
+            )
+          `)
+          .eq('slug', slug)
+          .eq('is_published', true)
+          .maybeSingle();
+
+        if (!error && data) {
+          return {
+            id: data.id,
+            name: data.name,
+            slug: data.slug,
+            categoryId: data.category_id,
+            categoryName: data.category_name,
+            productType: data.product_type,
+            shortDescription: data.short_description,
+            description: data.description,
+            mainImage: data.main_image,
+            additionalImages: data.additional_images || [],
+            variants: (data.variants || []).map((v: any) => ({
+              id: v.id,
+              length: v.length,
+              color: v.color,
+              price: Number(v.price),
+              sku: v.sku,
+              stockQuantity: v.stock_quantity ?? 10
+            })),
+            minPrice: Number(data.min_price || 0),
+            maxPrice: Number(data.max_price || 0),
+            texture: data.texture,
+            density: data.density,
+            capSize: data.cap_size,
+            origin: data.origin,
+            availability: data.availability || 'in_stock',
+            isFeatured: Boolean(data.is_featured),
+            isNewArrival: Boolean(data.is_new_arrival),
+            isPublished: Boolean(data.is_published ?? true),
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
+          };
+        }
+
+        if (error) {
+          console.warn('Supabase product detail fetch failed:', error);
+        }
+      } catch (err) {
+        console.warn('Supabase product detail fetch failed:', err);
+      }
+    }
+
+    const products = getCachedArray<Product>(STORAGE_KEYS.PRODUCTS);
     return products.find(p => p.slug === slug) || null;
   },
 
@@ -411,7 +519,7 @@ export const db = {
         // DO NOT fall back to INITIAL_CATEGORIES because
         // those local IDs may not exist in Supabase and can
         // cause product foreign-key errors.
-        return (data || []).map((c: any) => ({
+        const categories = (data || []).map((c: any) => ({
           id: c.id,
           name: c.name,
           slug: c.slug,
@@ -419,6 +527,9 @@ export const db = {
           image: c.image || '',
           displayOrder: Number(c.display_order ?? 0)
         }));
+
+        setLocalItem(STORAGE_KEYS.CATEGORIES, categories);
+        return categories;
 
       } catch (err) {
         console.error(
@@ -775,7 +886,7 @@ export const db = {
           .order('published_at', { ascending: false });
 
         if (!error && data) {
-          return data.map((b: any) => ({
+          const posts = data.map((b: any) => ({
             id: b.id,
             title: b.title,
             slug: b.slug,
@@ -793,6 +904,9 @@ export const db = {
             seoTitle: b.seo_title,
             seoDescription: b.seo_description
           }));
+
+          setLocalItem(STORAGE_KEYS.BLOG_POSTS, posts);
+          return posts;
         }
 
         if (error) {
@@ -933,7 +1047,7 @@ export const db = {
           .order('created_at', { ascending: false });
 
         if (!error && data) {
-          return data.map((v: any) => ({
+          const videos = data.map((v: any) => ({
             id: v.id,
             title: v.title,
             description: v.description,
@@ -944,6 +1058,9 @@ export const db = {
             isPublished: Boolean(v.is_published),
             createdAt: v.created_at
           }));
+
+          setLocalItem(STORAGE_KEYS.VIDEOS, videos);
+          return videos;
         }
 
         if (error) {
