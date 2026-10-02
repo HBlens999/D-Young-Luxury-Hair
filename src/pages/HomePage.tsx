@@ -38,25 +38,48 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     async function loadHomeData() {
-      try {
-        const [prods, cats, posts, vids] = await Promise.all([
-          db.getProducts(),
-          db.getCategories(),
-          db.getBlogPosts(),
-          db.getVideos()
+      // Paint the last successful catalog/content snapshot immediately.
+      // This prevents the whole homepage from waiting on Supabase after refresh.
+      const [cachedProducts, cachedCategories, cachedPosts, cachedVideos] =
+        await Promise.all([
+          Promise.resolve(db.getCachedProducts()),
+          Promise.resolve(db.getCachedCategories()),
+          Promise.resolve(db.getCachedBlogPosts()),
+          Promise.resolve(db.getCachedVideos())
         ]);
-        setProducts(prods);
-        setCategories(cats);
-        setBlogPosts(posts);
-        setVideos(vids);
-      } catch (err) {
-        console.error('Failed to load homepage data:', err);
-      } finally {
-        setIsLoading(false);
-      }
+
+      if (!active) return;
+
+      if (cachedProducts.length) setProducts(cachedProducts);
+      if (cachedCategories.length) setCategories(cachedCategories);
+      if (cachedPosts.length) setBlogPosts(cachedPosts);
+      if (cachedVideos.length) setVideos(cachedVideos);
+      setIsLoading(false);
+
+      // Revalidate independently so one slow table cannot block the others.
+      const refreshes = [
+        db.getProducts().then(data => active && setProducts(data)),
+        db.getCategories().then(data => active && setCategories(data)),
+        db.getBlogPosts().then(data => active && setBlogPosts(data)),
+        db.getVideos().then(data => active && setVideos(data))
+      ];
+
+      await Promise.allSettled(refreshes);
+
+      if (active) setIsLoading(false);
     }
-    loadHomeData();
+
+    loadHomeData().catch(err => {
+      console.error('Failed to load homepage data:', err);
+      if (active) setIsLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const featuredProducts = products.filter(p => p.isFeatured && p.isPublished).slice(0, 8);
