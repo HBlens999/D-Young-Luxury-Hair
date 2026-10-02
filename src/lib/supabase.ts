@@ -107,7 +107,15 @@ function getCachedArray<T>(key: string): T[] {
 export const db = {
 
   getCachedProducts(): Product[] {
-    return getCachedArray<Product>(STORAGE_KEYS.PRODUCTS);
+    // The previous full-catalogue cache can be several MB because it contains
+    // image arrays and every variant. Remove it automatically so old clients
+    // recover from QuotaExceededError without requiring manual cache clearing.
+    try {
+      localStorage.removeItem(STORAGE_KEYS.PRODUCTS);
+    } catch {
+      // Ignore storage cleanup failures.
+    }
+    return [];
   },
 
   getCachedCategories(): ProductCategory[] {
