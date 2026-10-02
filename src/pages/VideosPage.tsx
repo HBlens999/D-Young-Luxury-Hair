@@ -13,18 +13,30 @@ export const VideosPage: React.FC<VideosPageProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     async function load() {
+      const cached = db.getCachedVideos();
+
+      if (cached.length && active) {
+        setVideos(cached.filter(v => v.isPublished));
+        setIsLoading(false);
+      }
+
       try {
-        setIsLoading(true);
         const data = await db.getVideos();
-        setVideos(data.filter(v => v.isPublished));
+        if (active) setVideos(data.filter(v => v.isPublished));
       } catch (err) {
         console.error('Failed to load videos:', err);
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     }
+
     load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const getEmbedUrl = (url: string) => {
