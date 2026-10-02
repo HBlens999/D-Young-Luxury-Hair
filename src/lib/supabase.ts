@@ -181,9 +181,10 @@ export const db = {
             updatedAt: p.updated_at
           }));
 
-          // Persist the last successful catalog response so repeat visits can
-          // render immediately while Supabase refreshes in the background.
-          setLocalItem(STORAGE_KEYS.PRODUCTS, products);
+          // Do not persist the full product catalogue in localStorage.
+          // Product records contain large image URL arrays and all variants,
+          // which can exceed the browser's small localStorage quota and break
+          // admin/public data flows. Products are always fetched from Supabase.
           return products;
         }
 
