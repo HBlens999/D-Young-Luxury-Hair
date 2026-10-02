@@ -256,7 +256,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {featuredProducts.length === 0 ? (
+        {featuredProducts.length === 0 && isLoading ? (
           <div className="py-12 text-center text-[#8C6A48] bg-white border border-[#EAE2D7]">
             <p className="font-serif text-lg">Loading real hair collection...</p>
           </div>
