@@ -508,7 +508,12 @@ export const AdminHeroSlider: React.FC = () => {
                         <img
                           src={slide.image}
                           alt={slide.title}
+                          loading={index === 0 ? 'eager' : 'lazy'}
+                          decoding="async"
                           className="w-full h-full object-cover"
+                          onError={(event) => {
+                            event.currentTarget.style.display = 'none';
+                          }}
                         />
                       ) : (
                         <div className="text-center text-[#D8B46E]">
