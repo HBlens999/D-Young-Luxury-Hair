@@ -26,13 +26,16 @@ export const AdminBlog: React.FC = () => {
 
   const loadBlogData = async () => {
     try {
-      const [p, prods] = await Promise.all([
+      const [p, prods] = await Promise.allSettled([
         db.getBlogPosts(),
         db.getProducts()
       ]);
 
-      setPosts(p);
-      setProducts(prods);
+      if (p.status === 'fulfilled') setPosts(p.value);
+      else console.error('Admin blog posts failed:', p.reason);
+
+      if (prods.status === 'fulfilled') setProducts(prods.value);
+      else console.error('Admin blog products failed:', prods.reason);
     } catch (error) {
       console.error('Failed to load blog data:', error);
       showFeedback('Could not load blog posts.');
