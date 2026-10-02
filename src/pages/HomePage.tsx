@@ -57,7 +57,16 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       if (cachedCategories.length) setCategories(cachedCategories);
       if (cachedPosts.length) setBlogPosts(cachedPosts);
       if (cachedVideos.length) setVideos(cachedVideos);
-      setIsLoading(false);
+
+      // If we have a last-known-good snapshot, render it immediately.
+      // Otherwise keep the initial loading state until the first refresh completes.
+      const hasCachedContent =
+        cachedProducts.length > 0 ||
+        cachedCategories.length > 0 ||
+        cachedPosts.length > 0 ||
+        cachedVideos.length > 0;
+
+      setIsLoading(!hasCachedContent);
 
       // Revalidate independently so one slow table cannot block the others.
       const refreshes = [
