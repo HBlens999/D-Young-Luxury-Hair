@@ -18,14 +18,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
     async function loadStats() {
       try {
         setIsLoading(true);
-        const [prods, ords, posts] = await Promise.all([
+        // Load each dashboard source independently. A slow/failing
+        // catalogue request must not make orders and blog metrics appear empty.
+        const [prods, ords, posts] = await Promise.allSettled([
           db.getProducts(),
           db.getOrders(),
           db.getBlogPosts()
         ]);
-        setProducts(prods);
-        setOrders(ords);
-        setBlogPosts(posts);
+
+        if (prods.status === 'fulfilled') setProducts(prods.value);
+        else console.error('Dashboard products failed:', prods.reason);
+
+        if (ords.status === 'fulfilled') setOrders(ords.value);
+        else console.error('Dashboard orders failed:', ords.reason);
+
+        if (posts.status === 'fulfilled') setBlogPosts(posts.value);
+        else console.error('Dashboard blog posts failed:', posts.reason);
       } catch (err) {
         console.error('Failed to load dashboard metrics:', err);
       } finally {
