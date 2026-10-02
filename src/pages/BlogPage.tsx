@@ -13,21 +13,30 @@ export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     async function load() {
+      const cached = db.getCachedBlogPosts();
+
+      if (cached.length && active) {
+        setPosts(cached.filter((post) => post.isPublished));
+        setIsLoading(false);
+      }
+
       try {
-        setIsLoading(true);
-
         const data = await db.getBlogPosts();
-
-        setPosts(data.filter((post) => post.isPublished));
+        if (active) setPosts(data.filter((post) => post.isPublished));
       } catch (error) {
         console.error('Failed to load blog posts:', error);
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     }
 
     load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const categories = [
