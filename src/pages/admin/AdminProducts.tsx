@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Product, ProductCategory, ProductVariant, HairType } from '../../types';
-import { db } from '../../lib/supabase';
+import { db, uploadImageToStorage } from '../../lib/supabase';
 import { 
   Plus, 
   Trash2, 
@@ -23,6 +23,7 @@ export const AdminProducts: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Load products and categories
   const loadData = async () => {
@@ -489,21 +490,25 @@ export const AdminProducts: React.FC = () => {
                   </label>
                   <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#291C16] text-[#FDFCF7] text-[11px] uppercase tracking-wider font-semibold cursor-pointer hover:bg-[#4A3326] transition-colors">
                     <Upload className="w-3.5 h-3.5" />
-                    <span>Upload Image from Device</span>
+                    <span>{isUploadingImage ? "Uploading Image..." : "Upload Image from Device"}</span>
                     <input
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => {
+                      disabled={isUploadingImage}
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            if (typeof reader.result === 'string') {
-                              setEditingProduct({ ...editingProduct, mainImage: reader.result });
-                            }
-                          };
-                          reader.readAsDataURL(file);
+                        if (!file) return;
+                        setIsUploadingImage(true);
+                        try {
+                          const imageUrl = await uploadImageToStorage(file, 'products');
+                          setEditingProduct(current => current ? { ...current, mainImage: imageUrl } : current);
+                          showNotice('Product image uploaded successfully.');
+                        } catch (error) {
+                          showNotice(error instanceof Error ? error.message : 'Unable to upload image.');
+                        } finally {
+                          setIsUploadingImage(false);
+                          e.target.value = '';
                         }
                       }}
                     />
@@ -663,9 +668,10 @@ export const AdminProducts: React.FC = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={isUploadingImage}
                   className="px-6 py-2.5 bg-[#291C16] hover:bg-[#4A3326] text-white font-semibold uppercase tracking-wider cursor-pointer"
                 >
-                  Save Product & Update Shop
+                  {isUploadingImage ? "Please Wait..." : "Save Product & Update Shop"}
                 </button>
               </div>
 

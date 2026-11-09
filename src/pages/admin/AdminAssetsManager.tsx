@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../../lib/supabase';
+import { db, uploadImageToStorage } from '../../lib/supabase';
 import { Product, SiteSettings } from '../../types';
 import { useSettings } from '../../context/SettingsContext';
 import { 
@@ -41,105 +41,113 @@ export const AdminAssetsManager: React.FC = () => {
   }, []);
 
   const handleLogoUpload = async (file: File) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
-      if (dataUrl) {
-        await updateSettings({ ...settings, logoUrl: dataUrl });
-        setSaveStatus('Official Brand Logo successfully updated with your exact original file!');
-        setTimeout(() => setSaveStatus(null), 4000);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      setIsProcessing(true);
+      const imageUrl = await uploadImageToStorage(file, 'brand');
+      await updateSettings({ ...settings, logoUrl: imageUrl });
+      setSaveStatus('Official brand logo uploaded and saved successfully.');
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : 'Logo upload failed.');
+    } finally {
+      setIsProcessing(false);
+      setTimeout(() => setSaveStatus(null), 5000);
+    }
   };
 
   const handleCeoUpload = async (file: File) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
-      if (dataUrl) {
-        await updateSettings({ ...settings, ceoImageUrl: dataUrl });
-        setSaveStatus('Official CEO Photograph (Eze Stephen Chidubem) updated with your exact original file!');
-        setTimeout(() => setSaveStatus(null), 4000);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      setIsProcessing(true);
+      const imageUrl = await uploadImageToStorage(file, 'ceo');
+      await updateSettings({ ...settings, ceoImageUrl: imageUrl });
+      setSaveStatus('CEO photograph uploaded and saved successfully.');
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : 'CEO photo upload failed.');
+    } finally {
+      setIsProcessing(false);
+      setTimeout(() => setSaveStatus(null), 5000);
+    }
   };
 
   const handleProductUpload = async (productId: string, file: File) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
-      if (dataUrl) {
-        const prod = products.find(p => p.id === productId);
-        if (prod) {
-          const updated = { ...prod, mainImage: dataUrl };
-          await db.saveProduct(updated);
-          setProducts(prev => prev.map(p => p.id === productId ? updated : p));
-          setSaveStatus(`Original photograph attached to: ${prod.name}`);
-          setTimeout(() => setSaveStatus(null), 4000);
-        }
-      }
-    };
-    reader.readAsDataURL(file);
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    try {
+      setIsProcessing(true);
+      const imageUrl = await uploadImageToStorage(file, 'products');
+      const updated = { ...product, mainImage: imageUrl };
+      await db.saveProduct(updated);
+      setProducts(prev => prev.map(p => p.id === productId ? updated : p));
+      setSaveStatus(`Image uploaded and saved for ${product.name}.`);
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : 'Product image upload failed.');
+    } finally {
+      setIsProcessing(false);
+      setTimeout(() => setSaveStatus(null), 5000);
+    }
   };
 
-  const handleBatchUpload = (files: FileList | null) => {
+  const handleBatchUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setIsProcessing(true);
     let matchedCount = 0;
+    let failedCount = 0;
+    let settingsDraft = { ...settings };
+    let settingsChanged = false;
 
-    Array.from(files).forEach((file) => {
-      const nameLower = file.name.toLowerCase();
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const dataUrl = e.target?.result as string;
-        if (!dataUrl) return;
+    try {
+      for (const file of Array.from(files)) {
+        const nameLower = file.name.toLowerCase();
 
-        // Check if logo
-        if (nameLower.includes('logo') || nameLower.includes('chatgpt')) {
-          await updateSettings({ ...settings, logoUrl: dataUrl });
-          matchedCount++;
-        }
-        // Check if CEO / founder
-        else if (nameLower.includes('ceo') || nameLower.includes('founder') || nameLower.includes('stephen') || nameLower.includes('eze')) {
-          await updateSettings({ ...settings, ceoImageUrl: dataUrl });
-          matchedCount++;
-        }
-        // Check products matching keywords
-        else {
-          const target = products.find(p => {
-            const pLower = p.name.toLowerCase();
-            if (nameLower.includes('orange') && pLower.includes('orange')) return true;
-            if (nameLower.includes('burgundy') && pLower.includes('burgundy')) return true;
-            if (nameLower.includes('bounce') && pLower.includes('bounce')) return true;
-            if (nameLower.includes('pixel') && pLower.includes('pixel')) return true;
-            if (nameLower.includes('sassy') && pLower.includes('sassy')) return true;
-            if (nameLower.includes('piano') && pLower.includes('piano')) return true;
-            if (nameLower.includes('deep wave') && pLower.includes('deep wave')) return true;
-            if (nameLower.includes('10') && (pLower.includes('10"') || pLower.includes('10 with'))) return true;
-            if (nameLower.includes('20') && pLower.includes('20"')) return true;
-            return false;
+        try {
+          const isLogo = nameLower.includes('logo') || nameLower.includes('chatgpt');
+          const isCeo = nameLower.includes('ceo') || nameLower.includes('founder') || nameLower.includes('stephen') || nameLower.includes('eze');
+          const folder = isLogo ? 'brand' : isCeo ? 'ceo' : 'products';
+          const imageUrl = await uploadImageToStorage(file, folder);
+
+          if (isLogo) {
+            settingsDraft = { ...settingsDraft, logoUrl: imageUrl };
+            settingsChanged = true;
+            matchedCount++;
+            continue;
+          }
+
+          if (isCeo) {
+            settingsDraft = { ...settingsDraft, ceoImageUrl: imageUrl };
+            settingsChanged = true;
+            matchedCount++;
+            continue;
+          }
+
+          const target = products.find(product => {
+            const productName = product.name.toLowerCase();
+            return ['orange', 'burgundy', 'bounce', 'pixel', 'sassy', 'piano', 'deep wave']
+              .some(keyword => nameLower.includes(keyword) && productName.includes(keyword)) ||
+              (nameLower.includes('10') && (productName.includes('10"') || productName.includes('10 with'))) ||
+              (nameLower.includes('20') && productName.includes('20"'));
           });
 
           if (target) {
-            const updated = { ...target, mainImage: dataUrl };
+            const updated = { ...target, mainImage: imageUrl };
             await db.saveProduct(updated);
-            setProducts(prev => prev.map(p => p.id === target.id ? updated : p));
+            setProducts(prev => prev.map(product => product.id === target.id ? updated : product));
             matchedCount++;
           }
+        } catch (error) {
+          failedCount++;
+          console.error('Batch image upload failed:', file.name, error);
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      }
 
-    setTimeout(() => {
+      if (settingsChanged) await updateSettings(settingsDraft);
+      setSaveStatus(`Batch upload finished: ${matchedCount} matched and saved, ${failedCount} failed. Images are stored in Supabase Storage.`);
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : 'Batch upload failed.');
+    } finally {
       setIsProcessing(false);
-      setSaveStatus(`Batch processed files! Uploaded images are directly stored in your website without any alteration.`);
-      setTimeout(() => setSaveStatus(null), 5000);
-    }, 1200);
+      setTimeout(() => setSaveStatus(null), 7000);
+    }
   };
-
   return (
     <div className="space-y-8 max-w-5xl">
       {/* Title & Guarantee */}
