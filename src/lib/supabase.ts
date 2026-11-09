@@ -37,6 +37,58 @@ export const supabase: SupabaseClient | null =
     ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     : null;
 
+/**
+ * Upload an image to the public website-images bucket and return its public URL.
+ * Product and brand records should store this URL, never a Base64 data URL.
+ */
+export async function uploadImageToStorage(
+  file: File,
+  folder: 'products' | 'brand' | 'ceo' = 'products'
+): Promise<string> {
+  if (!supabase) {
+    throw new Error('Image upload is unavailable because Supabase is not configured.');
+  }
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error('Please choose a JPG, PNG, WebP, GIF, or AVIF image.');
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Image is too large. Please choose an image smaller than 10 MB.');
+  }
+
+  const extensionByType: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+    'image/avif': 'avif'
+  };
+  const uniqueName = `${Date.now()}-${crypto.randomUUID()}.${extensionByType[file.type]}`;
+  const filePath = `${folder}/${uniqueName}`;
+
+  const { error } = await supabase.storage
+    .from('website-images')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      contentType: file.type,
+      upsert: false
+    });
+
+  if (error) throw new Error(`Image upload failed: ${error.message}`);
+
+  const { data } = supabase.storage
+    .from('website-images')
+    .getPublicUrl(filePath);
+
+  if (!data.publicUrl) {
+    throw new Error('The image uploaded, but Supabase did not return its public URL.');
+  }
+
+  return data.publicUrl;
+}
+
 // Helper: clean and format WhatsApp phone number
 export function formatWhatsAppNumberForLink(phone: string): string {
   let clean = phone.replace(/[^0-9]/g, '');
