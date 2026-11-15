@@ -38,51 +38,74 @@ export const supabase: SupabaseClient | null =
     : null;
 
 /**
- * Normalize uploaded photos to a real JPEG before storing them.
- * This prevents a filename/MIME mismatch or browser-specific source encoding
- * from producing an object that Supabase stores but the storefront cannot decode.
+ * Try to normalize an image to JPEG for consistent storefront display.
+ * Some browsers/devices cannot decode otherwise valid image files through
+ * createImageBitmap. In that case, preserve and upload the original file.
  */
-async function normalizeImageForStorage(file: File): Promise<Blob> {
-  let bitmap: ImageBitmap;
+async function prepareImageForStorage(file: File): Promise<{ blob: Blob; contentType: string; extension: string }> {
   try {
-    bitmap = await createImageBitmap(file);
-  } catch {
-    throw new Error('This image could not be decoded by the browser. Please open it and save/export it as JPG or PNG, then try again.');
-  }
+    if (typeof createImageBitmap === 'function') {
+      const bitmap = await createImageBitmap(file);
+      try {
+        const maxDimension = 2400;
+        const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
 
-  try {
-    const maxDimension = 2400;
-    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const context = canvas.getContext('2d');
+        if (context) {
+          context.fillStyle = '#ffffff';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Your browser could not prepare this image for upload.');
-
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-
-    const jpeg = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        blob => blob ? resolve(blob) : reject(new Error('Image conversion failed. Please try another image.')),
-        'image/jpeg',
-        0.92
-      );
-    });
-
-    if (jpeg.size < 100) {
-      throw new Error('The converted image is empty. Please choose another image.');
+          const jpeg = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob(
+              blob => blob ? resolve(blob) : reject(new Error('Image conversion failed')),
+              'image/jpeg',
+              0.92
+            );
+          });
+          if (jpeg.size >= 100) {
+            return { blob: jpeg, contentType: 'image/jpeg', extension: 'jpg' };
+          }
+        }
+      } finally {
+        bitmap.close();
+      }
     }
-    return jpeg;
-  } finally {
-    bitmap.close();
+  } catch (error) {
+    console.warn('Browser image conversion unavailable; uploading original image.', error);
   }
+
+  // Use the file's declared MIME type, with a safe extension-based fallback.
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  const knownTypes: Record<string, { contentType: string; extension: string }> = {
+    jpg: { contentType: 'image/jpeg', extension: 'jpg' },
+    jpeg: { contentType: 'image/jpeg', extension: 'jpg' },
+    png: { contentType: 'image/png', extension: 'png' },
+    webp: { contentType: 'image/webp', extension: 'webp' },
+    gif: { contentType: 'image/gif', extension: 'gif' },
+    avif: { contentType: 'image/avif', extension: 'avif' }
+  };
+  const byExtension = knownTypes[extension];
+  const contentType = file.type.startsWith('image/')
+    ? file.type
+    : byExtension?.contentType;
+
+  if (!contentType) {
+    throw new Error('The browser could not read this file as a supported image. Please try a JPG or PNG file.');
+  }
+
+  const normalizedExtension = contentType === 'image/jpeg'
+    ? 'jpg'
+    : (contentType.split('/')[1] || byExtension?.extension || 'img').replace('jpeg', 'jpg');
+
+  return { blob: file, contentType, extension: normalizedExtension };
 }
 
 /**
- * Upload a browser-verified JPEG to the public website-images bucket.
+ * Upload an image to the public website-images bucket.
  * Product and brand records store the returned public URL, never Base64 data.
  */
 export async function uploadImageToStorage(
@@ -93,22 +116,22 @@ export async function uploadImageToStorage(
     throw new Error('Image upload is unavailable because Supabase is not configured.');
   }
 
-  if (!file.type.startsWith('image/')) {
+  if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif|avif)$/i.test(file.name)) {
     throw new Error('Please choose a valid image file.');
   }
   if (file.size > 10 * 1024 * 1024) {
     throw new Error('Image is too large. Please choose an image smaller than 10 MB.');
   }
 
-  const jpeg = await normalizeImageForStorage(file);
-  const uniqueName = `${Date.now()}-${crypto.randomUUID()}.jpg`;
+  const prepared = await prepareImageForStorage(file);
+  const uniqueName = `${Date.now()}-${crypto.randomUUID()}.${prepared.extension}`;
   const filePath = `${folder}/${uniqueName}`;
 
   const { error: uploadError } = await supabase.storage
     .from('website-images')
-    .upload(filePath, jpeg, {
-      cacheControl: '0',
-      contentType: 'image/jpeg',
+    .upload(filePath, prepared.blob, {
+      cacheControl: '3600',
+      contentType: prepared.contentType,
       upsert: false
     });
 
@@ -124,7 +147,8 @@ export async function uploadImageToStorage(
     throw new Error('The image uploaded, but Supabase did not return its public URL.');
   }
 
-  // Fetch and decode the actual public object before telling the admin the upload succeeded.
+  // Verify delivery and image content type only. Do not decode the image again
+  // in the same browser that may have failed to decode the original file.
   const verificationUrl = `${data.publicUrl}${data.publicUrl.includes('?') ? '&' : '?'}verify=${Date.now()}`;
   let verificationResponse: Response;
   try {
@@ -137,17 +161,14 @@ export async function uploadImageToStorage(
     throw new Error(`The image was uploaded, but its public URL returned HTTP ${verificationResponse.status}. Check the bucket access and Storage delivery.`);
   }
 
-  const returnedType = verificationResponse.headers.get('content-type') || '';
-  if (!returnedType.toLowerCase().startsWith('image/')) {
+  const returnedType = (verificationResponse.headers.get('content-type') || '').toLowerCase();
+  if (!returnedType.startsWith('image/')) {
     throw new Error(`The uploaded URL returned "${returnedType || 'an unknown content type'}" instead of an image.`);
   }
 
-  const returnedBlob = await verificationResponse.blob();
-  try {
-    const verifiedBitmap = await createImageBitmap(returnedBlob);
-    verifiedBitmap.close();
-  } catch {
-    throw new Error('Supabase received the upload, but the image returned from its public URL is not a readable image. The upload has been stopped from being marked successful.');
+  const returnedSize = Number(verificationResponse.headers.get('content-length') || 0);
+  if (returnedSize > 0 && returnedSize < 100) {
+    throw new Error('The uploaded file appears to be empty or incomplete. Please try another image.');
   }
 
   return data.publicUrl;
