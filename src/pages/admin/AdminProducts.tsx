@@ -24,6 +24,8 @@ export const AdminProducts: React.FC = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadDebug, setImageUploadDebug] = useState('No image selected yet.');
+  const [selectedImageName, setSelectedImageName] = useState('');
 
   // Load products and categories
   const loadData = async () => {
@@ -497,23 +499,37 @@ export const AdminProducts: React.FC = () => {
                       className="hidden"
                       disabled={isUploadingImage}
                       onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
+                        const input = e.currentTarget;
+                        const file = input.files?.[0];
+                        if (!file) {
+                          setImageUploadDebug('File chooser closed without selecting a file.');
+                          return;
+                        }
+
+                        setSelectedImageName(file.name);
+                        setImageUploadDebug(`File selected: ${file.name} (${Math.round(file.size / 1024)} KB, ${file.type || 'unknown type'}). Starting upload...`);
                         setIsUploadingImage(true);
+
                         try {
                           const imageUrl = await uploadImageToStorage(file, 'products');
                           setEditingProduct(current => current ? { ...current, mainImage: imageUrl } : current);
+                          setImageUploadDebug('Upload and public-image verification completed successfully.');
                           showNotice('Product image uploaded successfully.');
                         } catch (error) {
-                          showNotice(error instanceof Error ? error.message : 'Unable to upload image.');
+                          const message = error instanceof Error ? error.message : 'Unable to upload image.';
+                          setImageUploadDebug(`Upload failed: ${message}`);
+                          showNotice(message);
                         } finally {
                           setIsUploadingImage(false);
-                          e.target.value = '';
+                          input.value = '';
                         }
                       }}
                     />
                   </label>
                 </div>
+                <p role="status" aria-live="polite" className="text-[11px] text-[#6F5847] break-words">
+                  {imageUploadDebug}
+                </p>
 
                 <div className="flex items-center gap-4">
                   {editingProduct.mainImage && (
