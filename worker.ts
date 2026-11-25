@@ -33,7 +33,7 @@ async function fetchAssets(env: Env, request: Request): Promise<Response> {
       headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }
     });
   }
-  return fetchAssets(env, request);
+  return env.ASSETS.fetch(request);
 }
 
 function withArticleMetadata(html: string, article: ArticleRow, canonicalUrl: string): string {
@@ -85,7 +85,7 @@ export default {
       if (!article) return fetchAssets(env, request);
 
       const assetUrl = new URL('/index.html', url);
-      const page = await env.ASSETS.fetch(new Request(assetUrl, request));
+      const page = await fetchAssets(env, new Request(assetUrl, request));
       if (!page.ok) return page;
       const html = withArticleMetadata(await page.text(), article, url.toString());
       const headers = new Headers(page.headers);
