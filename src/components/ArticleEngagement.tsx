@@ -1,4 +1,5 @@
-import React, { FormEvent, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { MessageCircle, Heart, Share2, Send, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -30,6 +31,7 @@ export const ArticleEngagement: React.FC<ArticleEngagementProps> = ({ articleId,
   const [visitorId, setVisitorId] = useState('');
   const [likes, setLikes] = useState(0);
   const [comments, setComments] = useState<CommentRow[]>([]);
+  const [commentTotal, setCommentTotal] = useState(0);
   const [shares, setShares] = useState(0);
   const [liked, setLiked] = useState(false);
   const [name, setName] = useState('');
@@ -45,18 +47,21 @@ export const ArticleEngagement: React.FC<ArticleEngagementProps> = ({ articleId,
 
     let active = true;
     const load = async () => {
-      const [likeCount, commentRows, shareCount, ownLike] = await Promise.all([
+      const [likeCount, commentRows, commentCount, shareCount, ownLike] = await Promise.all([
         supabase.from('article_likes').select('id', { count: 'exact', head: true }).eq('article_id', articleId),
         supabase.from('article_comments').select('id, display_name, body, created_at').eq('article_id', articleId).order('created_at', { ascending: false }).limit(100),
+        supabase.from('article_comments').select('id', { count: 'exact', head: true }).eq('article_id', articleId),
         supabase.from('article_shares').select('id', { count: 'exact', head: true }).eq('article_id', articleId),
         supabase.from('article_likes').select('id').eq('article_id', articleId).eq('visitor_id', id).maybeSingle()
       ]);
       if (!active) return;
       if (likeCount.error) console.error('Article likes could not load:', likeCount.error);
       if (commentRows.error) console.error('Article comments could not load:', commentRows.error);
+      if (commentCount.error) console.error('Article comment count could not load:', commentCount.error);
       if (shareCount.error) console.error('Article shares could not load:', shareCount.error);
       setLikes(likeCount.count || 0);
       setComments((commentRows.data || []) as CommentRow[]);
+      setCommentTotal(commentCount.count || 0);
       setShares(shareCount.count || 0);
       setLiked(Boolean(ownLike.data));
     };
@@ -111,6 +116,7 @@ export const ArticleEngagement: React.FC<ArticleEngagementProps> = ({ articleId,
       return;
     }
     setComments(current => [data as CommentRow, ...current]);
+    setCommentTotal(value => value + 1);
     setComment('');
     setNotice('Your comment has been posted.');
   };
@@ -158,7 +164,7 @@ export const ArticleEngagement: React.FC<ArticleEngagementProps> = ({ articleId,
     <section className="max-w-3xl mx-auto mt-12 sm:mt-16 border-y border-[#EAE2D7] py-7 sm:py-9">
       <div className="flex items-center justify-between gap-3 mb-5">
         <h2 className="font-serif text-xl sm:text-2xl text-[#291C16]">Join the Conversation</h2>
-        <span className="text-[11px] text-[#8C6A48]">{numberLabel(comments.length)} comments</span>
+        <span className="text-[11px] text-[#8C6A48]">{numberLabel(commentTotal)} comments</span>
       </div>
 
       <div className="grid grid-cols-3 border-y border-[#EAE2D7] divide-x divide-[#EAE2D7] mb-6">
@@ -168,7 +174,7 @@ export const ArticleEngagement: React.FC<ArticleEngagementProps> = ({ articleId,
         </button>
         <a href="#article-comments" className="py-4 flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 text-xs font-medium text-[#4A3326] hover:text-[#8C6A48]">
           <MessageCircle className="w-4 h-4" />
-          <span>Comment · {numberLabel(comments.length)}</span>
+          <span>Comment · {numberLabel(commentTotal)}</span>
         </a>
         <button type="button" onClick={shareArticle} disabled={sharing} className="py-4 flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 text-xs font-medium text-[#4A3326] hover:text-[#8C6A48] disabled:opacity-50">
           {sharing ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
