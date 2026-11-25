@@ -1,5 +1,5 @@
 interface Env {
-  ASSETS: { fetch: (request: Request) => Promise<Response> };
+  ASSETS?: { fetch: (request: Request) => Promise<Response> };
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
 }
@@ -22,6 +22,18 @@ function escapeHtml(value: string): string {
 
 function replaceMeta(html: string, matcher: RegExp, tag: string): string {
   return matcher.test(html) ? html.replace(matcher, tag) : html.replace('</head>', `  ${tag}\n  </head>`);
+}
+
+
+async function fetchAssets(env: Env, request: Request): Promise<Response> {
+  if (!env.ASSETS || typeof env.ASSETS.fetch !== 'function') {
+    console.error('Cloudflare static assets binding ASSETS is missing. Check wrangler.jsonc and redeploy the Worker.');
+    return new Response('Website assets are not configured on this Worker. Please contact the site administrator.', {
+      status: 503,
+      headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }
+    });
+  }
+  return env.ASSETS.fetch(request);
 }
 
 function withArticleMetadata(html: string, article: ArticleRow, canonicalUrl: string): string {
@@ -48,11 +60,11 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const match = url.pathname.match(/^\/blog\/([^/]+)\/?$/);
-    if (request.method !== 'GET' || !match) return env.ASSETS.fetch(request);
+    if (request.method !== 'GET' || !match) return fetchAssets(env, request);
 
     const slug = decodeURIComponent(match[1]);
     const supabaseUrl = env.SUPABASE_URL || 'https://geikolbqvlrcucobzwlt.supabase.co';
-    if (!env.SUPABASE_ANON_KEY) return env.ASSETS.fetch(request);
+    if (!env.SUPABASE_ANON_KEY) return fetchAssets(env, request);
 
     try {
       const query = new URL('/rest/v1/blog_posts', supabaseUrl);
@@ -67,13 +79,13 @@ export default {
           Accept: 'application/json'
         }
       });
-      if (!result.ok) return env.ASSETS.fetch(request);
+      if (!result.ok) return fetchAssets(env, request);
       const articles = await result.json() as ArticleRow[];
       const article = articles[0];
-      if (!article) return env.ASSETS.fetch(request);
+      if (!article) return fetchAssets(env, request);
 
       const assetUrl = new URL('/index.html', url);
-      const page = await env.ASSETS.fetch(new Request(assetUrl, request));
+      const page = await fetchAssets(env, new Request(assetUrl, request));
       if (!page.ok) return page;
       const html = withArticleMetadata(await page.text(), article, url.toString());
       const headers = new Headers(page.headers);
@@ -82,7 +94,7 @@ export default {
       return new Response(html, { status: page.status, headers });
     } catch (error) {
       console.error('Article social preview generation failed:', error);
-      return env.ASSETS.fetch(request);
+      return fetchAssets(env, request);
     }
   }
 };
