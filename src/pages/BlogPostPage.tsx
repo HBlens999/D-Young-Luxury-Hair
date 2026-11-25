@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BlogPost, Product } from '../types';
 import { db } from '../lib/supabase';
 import { ProductCard } from '../components/product/ProductCard';
-import { ArrowLeft, Clock, User, Tag, Share2, Check } from 'lucide-react';
+import { ArrowLeft, Clock, User, Tag } from 'lucide-react';
+import { ArticleEngagement } from '../components/ArticleEngagement';
 
 interface BlogPostPageProps {
   slug: string;
@@ -16,7 +17,6 @@ export const BlogPostPage: React.FC<BlogPostPageProps> = ({
   const [post, setPost] = useState<BlogPost | null>(null);
   const [recommendedProduct, setRecommendedProduct] =
     useState<Product | null>(null);
-  const [copiedNotice, setCopiedNotice] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -51,20 +51,6 @@ export const BlogPostPage: React.FC<BlogPostPageProps> = ({
 
     loadPost();
   }, [slug]);
-
-  const handleShare = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-
-      setCopiedNotice(true);
-
-      setTimeout(() => {
-        setCopiedNotice(false);
-      }, 2500);
-    } catch (error) {
-      console.error('Failed to copy article link:', error);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -145,22 +131,7 @@ export const BlogPostPage: React.FC<BlogPostPageProps> = ({
               <span>{post.readTime}</span>
             </span>
 
-            <span aria-hidden="true">·</span>
 
-            <button
-              onClick={handleShare}
-              className="flex items-center gap-1.5 text-[#291C16] hover:text-[#8C6A48] transition-colors"
-            >
-              {copiedNotice ? (
-                <Check className="w-3.5 h-3.5 text-emerald-700" />
-              ) : (
-                <Share2 className="w-3.5 h-3.5" />
-              )}
-
-              <span>
-                {copiedNotice ? 'Link Copied!' : 'Share Article'}
-              </span>
-            </button>
 
           </div>
         </header>
@@ -198,6 +169,10 @@ export const BlogPostPage: React.FC<BlogPostPageProps> = ({
           </div>
 
         </section>
+
+        <div id="article-engagement">
+          <ArticleEngagement articleId={post.id} articleTitle={post.title} />
+        </div>
 
         {/* Recommended Product */}
         {recommendedProduct && (
